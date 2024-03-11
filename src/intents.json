@@ -1,0 +1,78 @@
+{
+    "intents": [
+        {
+            "tag": "greetings",
+            "patterns": [
+                "Hey",
+                "Hello",
+                "Hi",
+                "Good day",
+                "Are you there?",
+                "greetings"
+            ],
+            "responses": [
+                "Hello!",
+                "Hi, I'm here to help you :)"
+            ]
+        },
+        {
+            "tag": "wants_loan",
+            "patterns": [
+                "I want to borrow a loan",
+                "Please lend me some money",
+                "Could I get a loan from you?",
+                "I need financial assistance",
+                "Is it possible to borrow money?",
+                "Can you provide a loan?",
+                "I'm looking for a loan",
+                "I could use some financial help"
+            ],
+            "responses": [
+                "borrow_loan"
+            ]
+        },
+        {
+            "tag": "wants_amount",
+            "patterns": [
+                "I want to borrow [loan_amount] rupees",
+                "Please lend me [loan_amount] rupees",
+                "Can you provide [loan_amount] rupees loan?",
+                "I need [loan_amount] rupees",
+                "Borrow me [loan_amount] rupees",
+                "I'm looking for a loan of [loan_amount] rupees"
+            ],
+            "responses": [
+                "borrow_loan_amount"
+            ]
+        },
+        {
+            "tag": "bye",
+            "patterns": [
+                "bye",
+                "goodbye",
+                "stop",
+                "I have to go",
+                "end",
+                "That's great, bye!"
+            ],
+            "responses": [
+                "Goodbye, have a nice day"
+            ]
+        },
+        {
+            "tag": "thanks",
+            "patterns": [
+                "Thanks",
+                "Thank you",
+                "Great, thanks",
+                "Amazing, thanks",
+                "You are so great",
+                "You are amazing",
+                "That's great!"
+            ],
+            "responses": [
+                "I am happy that you liked my service!"
+            ]
+        }
+    ]
+}
