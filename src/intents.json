@@ -16,9 +16,9 @@
             ]
         },
         {
-            "tag": "wants_loan",
+            "tag": "borrow_loan",
             "patterns": [
-                "I want to borrow a loan",
+                "I want to borrow money",
                 "Please lend me some money",
                 "Could I get a loan from you?",
                 "I need financial assistance",
@@ -28,11 +28,11 @@
                 "I could use some financial help"
             ],
             "responses": [
-                "borrow_loan"
+                "Do you want loan?"
             ]
         },
         {
-            "tag": "wants_amount",
+            "tag": "borrow_amount",
             "patterns": [
                 "I want to borrow [loan_amount] rupees",
                 "Please lend me [loan_amount] rupees",
@@ -42,7 +42,7 @@
                 "I'm looking for a loan of [loan_amount] rupees"
             ],
             "responses": [
-                "borrow_loan_amount"
+                "processing loan"
             ]
         },
         {

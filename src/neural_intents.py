@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-import nltk
+
 import random
 import json
 import pickle
@@ -13,7 +13,8 @@ from nltk.stem import WordNetLemmatizer
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.optimizers.legacy import SGD
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.models import load_model
 
 nltk.download('punkt', quiet=True)
@@ -44,7 +45,7 @@ class IAssistant(metaclass=ABCMeta):
 
 class GenericAssistant(IAssistant):
 
-    def __init__(self, intents, intent_methods={}, model_name="assistant_model"):
+    def __init__(self, intents, intent_methods={}, model_name="peer_to_peer_lending_bot"):
         self.intents = intents
         self.intent_methods = intent_methods
         self.model_name = model_name
@@ -94,13 +95,12 @@ class GenericAssistant(IAssistant):
             training.append([bag, output_row])
 
         random.shuffle(training)
-        training = np.array(training)
-
-        train_x = list(training[:, 0])
-        train_y = list(training[:, 1])
+        max_len = max(len(seq) for seq, _ in training)
+        train_x = pad_sequences([seq for seq, _ in training], maxlen=max_len, padding='post')
+        train_y = np.array([label for _, label in training])
 
         self.model = Sequential()
-        self.model.add(Dense(128, input_shape=(len(train_x[0]),), activation='relu'))
+        self.model.add(Dense(128, input_dim=len(train_x[0]), activation='relu'))
         self.model.add(Dropout(0.5))
         self.model.add(Dense(64, activation='relu'))
         self.model.add(Dropout(0.5))
