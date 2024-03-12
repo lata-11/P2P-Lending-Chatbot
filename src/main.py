@@ -30,28 +30,37 @@ def send_greet(msg):
 
 # borrow loan
 def borrow_loan(msg):
-    loan_amount = bot.reply_to(msg, "How much do you want to borrow?")
-    bot.register_next_step_handler(loan_amount, process_loan_request)
+    user_id = msg.from_user.id
+    group_id = msg.chat.id
+
+    loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
 
 
-def process_loan_request(msg):
+def process_loan_request(msg, user_id, group_id):
     loan_amount = extract_numeric_value(msg.text)
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
+
+        send_loan_notification(group_id, user_id, loan_amount)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
-        borrow_loan(msg)  # Re-prompt for the loan amount
+        borrow_loan(msg)
+
 
 def extract_numeric_value(sentence):
-    # Using regular expression to find numeric values
     matches = re.findall(r'\b\d+\b', sentence)
     
     if matches:
         return float(matches[0])
     else:
         return None
+
+def get_group_members(group_id):
+    #Will add logic to get members from mongo db group
+    pass
 
 def bye(msg):
     bot.send_message(msg.chat.id, "Goodbye!")
@@ -68,6 +77,14 @@ def default_handler(msg):
 
 
 # send notification
+def send_loan_notification(group_id, sender_id, loan_amount):
+    members = get_group_members(group_id)
+    notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees."
+
+    for member_id in members:
+        if member_id != sender_id:
+            bot.send_message(member_id, notification_msg)
+
 
 # create group
 
@@ -75,8 +92,9 @@ def default_handler(msg):
 mappings = {
     'greetings': send_greet,
     'borrow_loan': borrow_loan,
-    'borrow_loan_amount': process_loan_request,
+    'borrow_amount': process_loan_request,
     'bye': bye,
+    'loan_notification': send_loan_notification,
     None: default_handler
 }
 

@@ -1,78 +1,76 @@
 {
     "intents": [
-        {
-            "tag": "greetings",
-            "patterns": [
-                "Hey",
-                "Hello",
-                "Hi",
-                "Good day",
-                "Are you there?",
-                "greetings"
-            ],
-            "responses": [
-                "Hello!",
-                "Hi, I'm here to help you :)"
-            ]
-        },
-        {
-            "tag": "borrow_loan",
-            "patterns": [
-                "I want to borrow money",
-                "Please lend me some money",
-                "Could I get a loan from you?",
-                "I need financial assistance",
-                "Is it possible to borrow money?",
-                "Can you provide a loan?",
-                "I'm looking for a loan",
-                "I could use some financial help"
-            ],
-            "responses": [
-                "Do you want loan?"
-            ]
-        },
-        {
-            "tag": "borrow_amount",
-            "patterns": [
-                "I want to borrow [loan_amount] rupees",
-                "Please lend me [loan_amount] rupees",
-                "Can you provide [loan_amount] rupees loan?",
-                "I need [loan_amount] rupees",
-                "Borrow me [loan_amount] rupees",
-                "I'm looking for a loan of [loan_amount] rupees"
-            ],
-            "responses": [
-                "processing loan"
-            ]
-        },
-        {
-            "tag": "bye",
-            "patterns": [
-                "bye",
-                "goodbye",
-                "stop",
-                "I have to go",
-                "end",
-                "That's great, bye!"
-            ],
-            "responses": [
-                "Goodbye, have a nice day"
-            ]
-        },
-        {
-            "tag": "thanks",
-            "patterns": [
-                "Thanks",
-                "Thank you",
-                "Great, thanks",
-                "Amazing, thanks",
-                "You are so great",
-                "You are amazing",
-                "That's great!"
-            ],
-            "responses": [
-                "I am happy that you liked my service!"
-            ]
-        }
-    ]
+			{
+				"tag": "greetings",
+				"patterns": [
+					"Hey",
+					"Hello",
+					"Hi",
+					"Good day",
+					"Are you there?",
+					"greetings"
+				],
+				"responses": ["Hello!", "Hi, I'm here to help you :)"]
+			},
+			{
+				"tag": "borrow_loan",
+				"patterns": [
+					"I want to borrow money",
+					"Please lend me some money",
+					"Could I get a loan from you?",
+					"I need financial assistance",
+					"Is it possible to borrow money?",
+					"Can you provide a loan?",
+					"I'm looking for a loan",
+					"I could use some financial help"
+				],
+				"responses": ["How much loan do you want ?"]
+			},
+			{
+				"tag": "borrow_amount",
+				"patterns": [
+					"I want to borrow [loan_amount] rupees",
+					"Please lend me [loan_amount] rupees",
+					"Can you provide [loan_amount] rupees loan?",
+					"I need [loan_amount] rupees",
+					"Borrow me [loan_amount] rupees",
+					"I'm looking for a loan of [loan_amount] rupees"
+				],
+				"responses": ["processing loan"]
+			},
+			{
+				"tag": "bye",
+				"patterns": [
+					"bye",
+					"goodbye",
+					"stop",
+					"I have to go",
+					"end",
+					"That's great, bye!"
+				],
+				"responses": ["Goodbye, have a nice day"]
+			},
+			{
+				"tag": "loan_notification",
+				"patterns": [
+                    
+                ],
+				"responses": [
+					"User [user_id] has requested a loan of [loan_amount] rupees."
+				]
+			},
+			{
+				"tag": "thanks",
+				"patterns": [
+					"Thanks",
+					"Thank you",
+					"Great, thanks",
+					"Amazing, thanks",
+					"You are so great",
+					"You are amazing",
+					"That's great!"
+				],
+				"responses": ["I am happy that you liked my service!"]
+			}
+		]
 }
