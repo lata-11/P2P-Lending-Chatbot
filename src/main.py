@@ -77,11 +77,11 @@ def default_handler(msg):
 # send notification
 def send_loan_notification(group_id, sender_id, loan_amount):
     members = get_group_members(group_id)
-    notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees."
+    notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees. Do you want to give him the loan? "
 
-    for member_id in members:
-        if member_id != sender_id:
-            bot.send_message(member_id, notification_msg)
+    # for member_id in members:
+    #     if member_id != sender_id:
+    bot.send_message(sender_id, notification_msg)
 
 
 # create group
