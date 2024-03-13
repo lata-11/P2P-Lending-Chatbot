@@ -73,6 +73,17 @@
             "responses": [
                 "I am happy that you liked my service!"
             ]
-        }
+        },
+        {
+			"tag": "create_group",
+			"patterns": [
+                "Create a group", 
+                "Start a group", 
+                "New group"
+            ],
+			"responses": [
+				"Sure, let's create a new group. Please provide the details."
+			]
+		}
     ]
 }

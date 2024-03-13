@@ -2,6 +2,11 @@ import telebot
 from neural_intents import GenericAssistant
 import sys
 import re
+# from pymongo import MongoClient
+
+# client = MongoClient('mongodb://localhost:27017/')
+# db = client['peer_to_peer_lending']
+# groups_collection = db['groups']
 
 
 API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
@@ -85,6 +90,22 @@ def send_loan_notification(group_id, sender_id, loan_amount):
 
 
 # create group
+def create_group(msg):
+    user_id = msg.from_user.id
+    group_name_msg = bot.reply_to(msg, "Please enter the group name:")
+    bot.register_next_step_handler(group_name_msg, lambda msg: process_group_name(msg, user_id))
+
+def process_group_name(msg, user_id):
+    group_name = msg.text
+    # group_id = groups_collection.insert_one({
+    #     'name': group_name,
+    #     'admin': user_id,
+    #     'members': [user_id]  # Add admin as the first member
+    # }).inserted_id
+
+    bot.send_message(user_id, f"Group '{group_name}' created successfully")
+    # bot.send_message(user_id, f"Group '{group_name}' created successfully with ID: {group_id}")
+
 
 #mapping
 mappings = {
@@ -93,6 +114,7 @@ mappings = {
     'borrow_amount': process_loan_request,
     'bye': bye,
     'loan_notification': send_loan_notification,
+    'create_group': create_group,  
     None: default_handler
 }
 
