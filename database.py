@@ -18,12 +18,12 @@ def authenticate():
 
 def group_creation(name, admin_name, admin_password, join_code):
     
-    # check if group name is available or not
+    record = {"name": name, "admin_name": admin_name, "admin_password": admin_password, "join_code": join_code}
+    collection = db["Groups"]
+
     if(collection.find_one({"name":name})):
         return "Group Name Not Available"
     
-    record = {"name": name, "admin_name": admin_name, "admin_password": admin_password, "join_code": join_code}
-    collection = db["Groups"]
     collection.insert_one(record)
     return "Group Created"
 
