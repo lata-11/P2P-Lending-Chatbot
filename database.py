@@ -16,9 +16,9 @@ def authenticate():
      #check if the details are authentic or not
      return True
 
-def group_creation(name, admin_name, admin_password, join_code):
+def group_creation(name, admin_id, admin_password, join_code):
     
-    record = {"name": name, "admin_name": admin_name, "admin_password": admin_password, "join_code": join_code}
+    record = {"name": name, "admin_id": admin_id, "admin_password": admin_password, "join_code": join_code}
     collection = db["Groups"]
 
     if(collection.find_one({"name":name})):
@@ -27,7 +27,7 @@ def group_creation(name, admin_name, admin_password, join_code):
     collection.insert_one(record)
     return "Group Created"
 
-def add_member(group_name, join_code, member_name, telegram_id, authentication_details):
+def add_member(group_name, join_code, member_id, authentication_details):
 
     group = db["Groups"]
     document = group.find_one({"name": group_name})
@@ -41,7 +41,7 @@ def add_member(group_name, join_code, member_name, telegram_id, authentication_d
     if not authenticate():
          return "Member details are not authentic"
     
-    record = {"Member_name": member_name, "Group_id": group_id, "telegram_id": telegram_id, "authentication details": authentication_details, "points" : 0}
+    record = {"Member_name": member_id, "Group_id": group_id, "authentication details": authentication_details, "points" : 0}
     member_collections = db["Members"]
     member_collections.insert_one(record)
 
