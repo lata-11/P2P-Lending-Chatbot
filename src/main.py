@@ -1,6 +1,7 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
+from database import *
 import re
 # from pymongo import MongoClient
 
