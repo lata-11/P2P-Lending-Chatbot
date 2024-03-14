@@ -26,8 +26,9 @@ def group_creation(name, admin_id, admin_password, join_code):
     collection.insert_one(record)
     return "Group Created"
 
-def add_member(group_name, join_code, member_id, authentication_details):
-
+def add_member(group_name, join_code,member_name, telegram_id, authentication_details, permission, password):
+    if not(permission):
+        return "Permission to join the group denied"
     group = db["Groups"]
     document = group.find_one({"name": group_name})
     if not (document):
@@ -36,13 +37,16 @@ def add_member(group_name, join_code, member_id, authentication_details):
     if not (group.find_one({"name": group_name, "join_code": join_code})):
         return "Group Join Code Incorrect"
     
-    group_id = document.get("Group_id")
-    if not authenticate():
+    group_id = document.get("_id")
+    if not authenticate(authentication_details):
          return "Member details are not authentic"
     
-    record = {"Member_name": member_id, "Group_id": group_id, "authentication details": authentication_details, "points" : 0}
+    record = {"Member_name": member_name, "Group_id": group_id, "telegram_id": telegram_id,"password":password, "authentication details": authentication_details, "points" : 0}
     member_collections = db["Members"]
+    if (member_collections.find_one({"telegram_id": telegram_id})):
+        return "Member already present in group"
     member_collections.insert_one(record)
+    return "Successfully added in group"
 
 def add_transaction(borrower_id, lender_id, group_id, amount, time):
     transaction = db["Transaction"]
