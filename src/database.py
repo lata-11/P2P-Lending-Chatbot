@@ -54,3 +54,12 @@ def admin_login(admin_id, admin_password, group_name):
     if not (group.find_one({"admin_id": admin_id, "admin_password": admin_password, "name": group_name})):
         return "Incorrect Credentials"
     
+def remove_member(member_name, group_name):
+    collection = db["Members"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    print(group_id)
+    result = collection.delete_one({"Member_name": member_name, "Group_id": group_id})
+    if result.deleted_count == 1:
+        return "Member removed successfully."
+    else:
+        return "Entry not found." 
