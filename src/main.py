@@ -3,13 +3,6 @@ from neural_intents import GenericAssistant
 import sys
 from database import *
 import re
-# from pymongo import MongoClient
-
-# client = MongoClient('mongodb://localhost:27017/')
-# db = client['peer_to_peer_lending']
-# groups_collection = db['groups']
-
-
 API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
@@ -108,7 +101,7 @@ def process_join_code(msg, user_id, group_name):
 
 def process_password(msg, user_id, group_name, join_code):
     password = msg.text
-    group_creation(group_name, user_id, join_code, password)  # Assuming 'group_creation' function is from db.py
+    group_creation(group_name, user_id, join_code, password) 
 
     bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code}")
 
@@ -123,7 +116,6 @@ mappings = {
     None: default_handler
 }
 
-# training model
 assistant = GenericAssistant(
     'src/intents.json', mappings, "peer_to_peer_lending_bot")
 
