@@ -63,3 +63,20 @@ def remove_member(member_name, group_name):
         return "Member removed successfully."
     else:
         return "Entry not found." 
+
+def get_admin_id(group_name):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name})
+    if document:
+        return document.get("admin_id")
+    return None
+
+def is_join_code_correct(group_name, join_code):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name, "join_code": join_code})
+    return bool(document)
+
+def is_group_exists(group_name):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name})
+    return bool(document)
