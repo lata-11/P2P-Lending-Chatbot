@@ -4,9 +4,8 @@ import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
 
 # Create a new client and connect to the server
-client = MongoClient(uri, server_api=ServerApi('1'), tlsCAFile=certifi.where())
+client = MongoClient(uri, server_api=ServerApi('1'))
 db = client["P2PLend"]
-# Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
 except Exception as e:
@@ -50,11 +49,8 @@ def add_transaction(borrower_id, lender_id, group_id, amount, time):
     record = {"Borrower_id": borrower_id, "Lender_id": lender_id, "Group_id": group_id, "Amount": amount, "Time" : time, "Return_status": "Pending"}
     transaction.insert_one(record)
 
-def admin_login(admin_name, admin_password, group_id):
-    #powers of admin
-     group = db["Groups"]
-     if not (group.find_one({"admin_name": admin_name, "admin_password": admin_password, "group_id": group_id})):
-         return "Incorrect Credentials"
-     #powers of admin
-
+def admin_login(admin_id, admin_password, group_name):
+    group = db["Groups"]
+    if not (group.find_one({"admin_id": admin_id, "admin_password": admin_password, "name": group_name})):
+        return "Incorrect Credentials"
     
