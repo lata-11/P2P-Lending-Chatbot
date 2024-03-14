@@ -1,6 +1,7 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
+from database import *
 import re
 # from pymongo import MongoClient
 
@@ -97,15 +98,19 @@ def create_group(msg):
 
 def process_group_name(msg, user_id):
     group_name = msg.text
-    # group_id = groups_collection.insert_one({
-    #     'name': group_name,
-    #     'admin': user_id,
-    #     'members': [user_id]  # Add admin as the first member
-    # }).inserted_id
+    join_code_msg = bot.send_message(user_id, "Please enter the join code for the group:")
+    bot.register_next_step_handler(join_code_msg, lambda msg: process_join_code(msg, user_id, group_name))
 
-    bot.send_message(user_id, f"Group '{group_name}' created successfully")
-    # bot.send_message(user_id, f"Group '{group_name}' created successfully with ID: {group_id}")
+def process_join_code(msg, user_id, group_name):
+    join_code = msg.text
+    password_msg = bot.send_message(user_id, "Please enter a password for the group:")
+    bot.register_next_step_handler(password_msg, lambda msg: process_password(msg, user_id, group_name, join_code))
 
+def process_password(msg, user_id, group_name, join_code):
+    password = msg.text
+    group_creation(group_name, user_id, join_code, password)  # Assuming 'group_creation' function is from db.py
+
+    bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code}")
 
 #mapping
 mappings = {
