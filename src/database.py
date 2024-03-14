@@ -67,3 +67,17 @@ def remove_member(member_name, group_name):
         return "Member removed successfully."
     else:
         return "Entry not found." 
+
+def lend_proposals(lender_tid, group_name, interest, borrower_tid):#tid is the telegram id
+    collection = db["Active_Proposals"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    record = {"group_id": group_id, "lender_id": lender_tid, "borrower_id": borrower_tid, "interest": interest}
+    collection.insert_one(record)
+    return "Offer made successfully"
+
+
+def display_proposals(member_id,group_name):
+    collection = db["Active_Proposals"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    proposals = collection.find({"borrower_id": member_id, "group_id": group_id}, {"_id": 1, "interest": 1})
+    return proposals
