@@ -20,6 +20,7 @@ def group_creation(name, admin_id, admin_password, join_code, admin_name):
     add_member(name, admin_id, admin_name)
     return True
 
+
 def add_transaction(borrower_id, lender_id, group_id, amount, time):
     transaction = db["Transaction"]
     record = {"Borrower_id": borrower_id, "Lender_id": lender_id, "Group_id": group_id, "Amount": amount, "Time" : time, "Return_status": "Pending"}
@@ -73,3 +74,17 @@ def is_group_exists(group_name):
     group = db["Groups"]
     document = group.find_one({"name": group_name})
     return bool(document)
+
+def lend_proposals(lender_tid, group_name, interest, borrower_tid):#tid is the telegram id
+    collection = db["Active_Proposals"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    record = {"group_id": group_id, "lender_id": lender_tid, "borrower_id": borrower_tid, "interest": interest}
+    collection.insert_one(record)
+    return "Offer made successfully"
+
+
+def display_proposals(member_id,group_name):
+    collection = db["Active_Proposals"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    proposals = collection.find({"borrower_id": member_id, "group_id": group_id}, {"_id": 1, "interest": 1})
+    return proposals
