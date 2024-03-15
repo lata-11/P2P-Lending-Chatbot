@@ -138,6 +138,7 @@ def process_join_code_for_join(msg, user_id, username, group_name):
     join_code = msg.text
     if is_join_code_correct(group_name, join_code):
         send_request_to_admin(group_name, user_id, username)
+        bot.send_message(user_id, "Your request has been sent to the admin. You will be notified once the admin acknowledges your request.")
     else:
         bot.send_message(user_id, "Incorrect join code. Please try again.")
         return add_to_group_request(msg)
