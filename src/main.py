@@ -3,7 +3,7 @@ from neural_intents import GenericAssistant
 import sys
 from database import *
 import re
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
@@ -56,6 +56,10 @@ def default_handler(msg):
 # loan notification
 def borrow_loan(msg):
     user_id = msg.from_user.id
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
+        return
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
     bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_name))
 
@@ -83,40 +87,52 @@ def send_loan_notification(group_id, sender_id, loan_amount):
 # create group
 def create_group(msg):
     user_id = msg.from_user.id
-    group_name_msg = bot.reply_to(msg, "Please enter the group name:")
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
+        return
+    group_name_msg = bot.reply_to(msg, "Please enter the group name. Please keep in mind that name is case sensitive.")
     bot.register_next_step_handler(group_name_msg, lambda msg: process_group_name(msg, user_id))
 
 def process_group_name(msg, user_id):
     group_name = msg.text
-    join_code_msg = bot.send_message(user_id, "Please enter the join code for the group:")
+    if(is_group_exists(group_name)):
+        bot.send_message(user_id, f"Group '{group_name}' already exists. Please choose another name.")
+        return create_group(msg)
+    join_code_msg = bot.send_message(user_id, "Please enter the join code for the group that you want to create. This code will be used by others to join the group.")
     bot.register_next_step_handler(join_code_msg, lambda msg: process_join_code(msg, user_id, group_name))
 
 def process_join_code(msg, user_id, group_name):
     join_code = msg.text
-    password_msg = bot.send_message(user_id, "Please enter admin password for the group:")
+    password_msg = bot.send_message(user_id, "Please enter admin password for the group. This password will be used by you to login as admin of this group.")
     bot.register_next_step_handler(password_msg, lambda msg: process_password(msg, user_id, group_name, join_code))
 
 def process_password(msg, user_id, group_name, join_code):
+    username = msg.from_user.username
     password = msg.text
-    group_creation(group_name, user_id, join_code, password) 
-
+    group_creation(group_name, user_id, password,join_code , username) 
     bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code} and you are the admin for that group")
 
 
 # join group 
 def add_to_group_request(msg):
     user_id = msg.from_user.id
-    username = msg.from_user.username  
-    bot.send_message(user_id, "Please enter the name of the group you want to join:")
-    bot.register_next_step_handler(msg, lambda msg: process_group_name_for_join(msg, user_id, username))
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.You will be known by that username in the group. So please set it accordingly.")
+        return
+    else:
+        bot.send_message(user_id, "Please enter the name of the group you want to join. Please keep in mind that name is case sensitive.")
+        bot.register_next_step_handler(msg, lambda msg: process_group_name_for_join(msg, user_id, username))
 
 def process_group_name_for_join(msg, user_id, username):
     group_name = msg.text
     if is_group_exists(group_name):
-        bot.send_message(user_id, "Please enter the join code for the group:")
+        bot.send_message(user_id, "Please enter the join code for the group. If you don't have it ask admin for the join code.")
         bot.register_next_step_handler(msg, lambda msg: process_join_code_for_join(msg, user_id, username, group_name))
     else:
         bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+        return add_to_group_request(msg)
 
 def process_join_code_for_join(msg, user_id, username, group_name):
     join_code = msg.text
@@ -124,13 +140,29 @@ def process_join_code_for_join(msg, user_id, username, group_name):
         send_request_to_admin(group_name, user_id, username)
     else:
         bot.send_message(user_id, "Incorrect join code. Please try again.")
+        return add_to_group_request(msg)
+        
 
 def send_request_to_admin(group_name, user_id, username):
     admin_id = get_admin_id(group_name)
     if admin_id is not None:
         notification_msg = f"User @{username} wants to join the group '{group_name}'. Do you approve?"  
-        bot.send_message(admin_id, notification_msg)
+        markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        markup.add("Yes", "No")
+        bot.send_message(admin_id, notification_msg, reply_markup=markup)
+        bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: process_admin_response(msg, group_name, user_id, username))
 
+def process_admin_response(msg, group_name, user_id, username):
+    admin_response = msg.text.lower()
+    if admin_response == "yes":
+        if add_member(group_name, user_id,username):
+            bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
+        else:
+            bot.send_message(user_id, "You are already a member of this group.")
+    elif admin_response == "no":
+        bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
+    else:
+        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
 #mapping
 mappings = {
