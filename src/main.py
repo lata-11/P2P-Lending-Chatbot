@@ -29,8 +29,6 @@ def send_greet(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
 
 # borrow loan
-
-
 def extract_numeric_value(sentence):
     matches = re.findall(r'\b\d+\b', sentence)
     
@@ -61,7 +59,7 @@ def borrow_loan(msg):
         bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
         return
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
-    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_name))
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id))
 
 def process_loan_request(msg, user_id, group_id):
     loan_amount = extract_numeric_value(msg.text)
@@ -76,12 +74,12 @@ def process_loan_request(msg, user_id, group_id):
         borrow_loan(msg)
 
 def send_loan_notification(group_id, sender_id, loan_amount):
-    members = get_group_members(group_id)
+    # members = get_group_members(group_id)
     notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees. Do you want to give him the loan? "
 
-    for member_id in members:
+    # for member_id in members:
     #     if member_id != sender_id:
-        bot.send_message(sender_id, notification_msg)
+    bot.send_message(sender_id, notification_msg)
 
 
 # create group
