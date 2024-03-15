@@ -2,6 +2,7 @@ import telebot
 from neural_intents import GenericAssistant
 import sys
 from database import *
+from poll import create_poll
 import re
 API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
 
@@ -56,12 +57,15 @@ def default_handler(msg):
 # loan notification
 def borrow_loan(msg):
     user_id = msg.from_user.id
+    group_id= msg.chat.id
     username = msg.from_user.username
+    if group_id == None:
+        bot.send_message(user_id, "You are not a part of a group. Please create/join a group")
     if username is None:
         bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
         return
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
-    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_name))
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
 
 def process_loan_request(msg, user_id, group_id):
     loan_amount = extract_numeric_value(msg.text)
@@ -69,19 +73,17 @@ def process_loan_request(msg, user_id, group_id):
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-
-        send_loan_notification(group_id, user_id, loan_amount)
+        create_poll(msg)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
 
-def send_loan_notification(group_id, sender_id, loan_amount):
-    members = get_group_members(group_id)
-    notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees. Do you want to give him the loan? "
-
-    for member_id in members:
+def send_notification(sender_id, message):
+    # members = get_group_members(group_id)
+    notification_msg = "This is a notification, use me to send any type of notification."
+    # for member_id in members:
     #     if member_id != sender_id:
-        bot.send_message(sender_id, notification_msg)
+    bot.send_message(sender_id, message)
 
 
 # create group
@@ -171,7 +173,6 @@ mappings = {
     'borrow_loan': borrow_loan,
     'borrow_amount': process_loan_request,
     'bye': bye,
-    'loan_notification': send_loan_notification,
     'create_group': create_group,  
     'join_group': initiate_add_to_group_request,
     None: default_handler
