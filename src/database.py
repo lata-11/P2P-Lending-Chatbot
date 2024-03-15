@@ -3,7 +3,6 @@ from pymongo.server_api import ServerApi
 import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
 
-# Create a new client and connect to the server
 client = MongoClient(uri, server_api=ServerApi('1'))
 db = client["P2PLend"]
 try:
@@ -11,42 +10,16 @@ try:
 except Exception as e:
     print(e)
 
-def authenticate():
-     #check if the details are authentic or not
-     return True
 
-def group_creation(name, admin_id, admin_password, join_code):
+def group_creation(name, admin_id, admin_password, join_code, admin_name):
     
     record = {"name": name, "admin_id": admin_id, "admin_password": admin_password, "join_code": join_code}
     collection = db["Groups"]
-
-    if(collection.find_one({"name":name})):
-        return "Group Name Not Available"
     
     collection.insert_one(record)
-    return "Group Created"
+    add_member(name, admin_id, admin_name)
+    return True
 
-def add_member(group_name, join_code,member_name, telegram_id, authentication_details, permission, password):
-    if not(permission):
-        return "Permission to join the group denied"
-    group = db["Groups"]
-    document = group.find_one({"name": group_name})
-    if not (document):
-        return "No such group exists"
-       
-    if not (group.find_one({"name": group_name, "join_code": join_code})):
-        return "Group Join Code Incorrect"
-    
-    group_id = document.get("_id")
-    if not authenticate(authentication_details):
-         return "Member details are not authentic"
-    
-    record = {"Member_name": member_name, "Group_id": group_id, "telegram_id": telegram_id,"password":password, "authentication details": authentication_details, "points" : 0}
-    member_collections = db["Members"]
-    if (member_collections.find_one({"telegram_id": telegram_id})):
-        return "Member already present in group"
-    member_collections.insert_one(record)
-    return "Successfully added in group"
 
 def add_transaction(borrower_id, lender_id, group_id, amount, time):
     transaction = db["Transaction"]
@@ -67,6 +40,40 @@ def remove_member(member_name, group_name):
         return "Member removed successfully."
     else:
         return "Entry not found." 
+    
+def add_member(group_name,member_id,member_name):
+    member_collections = db["Members"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    existing_member = member_collections.find_one({"telegram_id": member_id})
+    if existing_member:
+        group_ids = existing_member.get("Group_id", [])
+        if group_id not in group_ids:
+            group_ids.append(group_id)
+            member_collections.update_one({"telegram_id": member_id}, {"$set": {"Group_id": group_ids, "Member_name": member_name}})
+            return True
+        else:
+            return False
+    else:
+        record = {"telegram_id": member_id, "Group_id": [group_id], "authentication details": 000, "points" : 0,"Member_name":member_name}
+        member_collections.insert_one(record)
+        return True
+
+def get_admin_id(group_name):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name})
+    if document:
+        return document.get("admin_id")
+    return None
+
+def is_join_code_correct(group_name, join_code):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name, "join_code": join_code})
+    return bool(document)
+
+def is_group_exists(group_name):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name})
+    return bool(document)
 
 def lend_proposals(lender_tid, group_name, interest, borrower_tid):#tid is the telegram id
     collection = db["Active_Proposals"]
