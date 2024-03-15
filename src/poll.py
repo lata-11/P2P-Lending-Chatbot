@@ -15,10 +15,10 @@ def start_poll(message):
 def create_poll(message):
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
-    bot.send_message(message.chat.id, "A member of your group has requested for a loan of 1000 rupees. Are you willing to give?", reply_markup=markup)
+    msg = bot.send_message(message.chat.id, "A member of your group has requested for a loan of 1000 rupees. Are you willing to give?", reply_markup=markup)
 
     # Register a handler to handle the user's response to the poll
-    bot.register_next_step_handler(message, handle_poll_response)
+    bot.register_next_step_handler(msg, handle_poll_response(msg))
 
 def handle_poll_response(message):
     if message.text.lower() == "yes":
