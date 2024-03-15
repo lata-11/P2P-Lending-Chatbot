@@ -3,7 +3,7 @@ from neural_intents import GenericAssistant
 import sys
 from database import *
 import re
-API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
+API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
