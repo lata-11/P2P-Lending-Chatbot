@@ -77,15 +77,7 @@ def process_loan_request(msg, user_id, group_id):
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
-
-def send_notification(sender_id, message):
-    # members = get_group_members(group_id)
-    notification_msg = "This is a notification, use me to send any type of notification."
-    # for member_id in members:
-    #     if member_id != sender_id:
-    bot.send_message(sender_id, message)
-
-
+        
 # create group
 def create_group(msg):
     user_id = msg.from_user.id
@@ -158,15 +150,32 @@ def send_request_to_admin(group_name, user_id, username):
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        if add_member(group_name, user_id,username):
-            bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
-        else:
-            bot.send_message(user_id, "You are already a member of this group.")
+        bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan.")
+        # Register a handler to capture UPI ID
+        bot.register_next_step_handler(msg, lambda msg: process_upi_id(msg, group_name, user_id, username))
     elif admin_response == "no":
         bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
     else:
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
+
+def process_upi_id(msg, group_name, user_id, username):
+    upi_id = msg.text
+    bot.send_message(user_id, "Thank you for providing your UPI ID.")
+    
+    bot.send_message(user_id, "Please provide your phone number linked to your UPI ID.")
+    # Register a handler to capture phone number
+    bot.register_next_step_handler(msg, lambda msg: process_phone_number(msg, group_name, user_id, username, upi_id))
+
+def process_phone_number(msg, group_name, user_id, username, upi_id):
+    phone_number = msg.text
+    bot.send_message(user_id, "Thank you for providing your phone number.")
+    
+    # Add member with UPI ID and phone number
+    add_member(group_name, user_id, username, upi_id, phone_number)
+    
+    bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
+    
 #create poll
 def create_poll(group_name, user_id, username):
     sent_msg ="A group member of yours has requested a loan. Are you willing to give?"
@@ -179,9 +188,16 @@ def handle_poll_response(msg, group_name, user_id, username):
     user_response = msg.text.lower()
     if user_response == "yes":
             bot.send_message(user_id, f"You voted 'Yes! Thank you for lending.")
+            send_upi_details(user_id, username)
     elif user_response == "no":
          bot.send_message(user_id, "You voted 'No'!")
+         
 
+def send_upi_details(user_id, upi_id):
+    send_msg= f"Hi, you wished to lend a loan. Here are the details. UPI ID: {upi_id}"
+    bot.send_message(user_id, send_msg)
+    
+    
 #mapping
 mappings = {
     'greetings': send_greet,

@@ -1,5 +1,6 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from bson import ObjectId
 import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
 
@@ -41,20 +42,34 @@ def remove_member(member_name, group_name):
     else:
         return "Entry not found." 
     
-def add_member(group_name,member_id,member_name):
+def add_member(group_name, member_id, member_name, upi_id=None, phone_number=None):
     member_collections = db["Members"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     existing_member = member_collections.find_one({"telegram_id": member_id})
     if existing_member:
         group_ids = existing_member.get("Group_id", [])
+        # Convert group_ids to a list if it's an ObjectId
+        if not isinstance(group_ids, list):
+            group_ids = [group_ids]
         if group_id not in group_ids:
             group_ids.append(group_id)
-            member_collections.update_one({"telegram_id": member_id}, {"$set": {"Group_id": group_ids, "Member_name": member_name}})
+            update_data = {"$set": {"Group_id": group_ids, "Member_name": member_name}}
+            # Update UPI ID and phone number if provided
+            if upi_id:
+                update_data["$set"]["upi_id"] = upi_id
+            if phone_number:
+                update_data["$set"]["phone_number"] = phone_number
+            member_collections.update_one({"telegram_id": member_id}, update_data)
             return True
         else:
             return False
     else:
-        record = {"telegram_id": member_id, "Group_id": [group_id], "authentication details": 000, "points" : 0,"Member_name":member_name}
+        record = {"telegram_id": member_id, "Group_id": [group_id], "authentication details": 000, "points": 0, "Member_name": member_name}
+        # Add UPI ID and phone number to the record if provided
+        if upi_id:
+            record["upi_id"] = upi_id
+        if phone_number:
+            record["phone_number"] = phone_number
         member_collections.insert_one(record)
         return True
 
