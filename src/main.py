@@ -1,9 +1,11 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
 from database import *
 import re
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+API_KEY = '6820242360:AAFEkPpQekkE2snCEDQN6EmJLtptrMlYv3A'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
@@ -159,6 +161,35 @@ def process_admin_response(msg, group_name, user_id, username):
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
 
+#remove from group
+
+def leave_group_request(msg):
+    user_id=msg.from_user.id
+    username=msg.from_user.username
+    if username is None:
+        bot.send_message(user_id,"Please set your Telegram username before interacting with this bot.You will be known by that username in the group. So please set it accordingly.")
+        return
+    else:
+        bot.send_message(user_id, "Please enter the name of the group you want to exit. Please keep in mind that name is case sensitive.")
+        bot.register_next_step_handler(msg, lambda msg: process_group_name_for_removal(msg, user_id, username))
+
+def process_group_name_for_removal(msg, user_id, username):
+    group_name = msg.text
+    if is_group_exists(group_name):
+        bot.register_next_step_handler(msg, lambda msg: process_removal_request(msg, user_id, username, group_name))
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+        return leave_group_request(msg)
+    
+def process_removal_request(msg, user_id, username,group_name):
+    if(leave_group(username,user_id,group_name)):
+        bot.send_message(user_id,f"You have been removed from the group '{group_name}' ,Successfully.")
+    else:
+        bot.send_message(user_id,"Invalid request. You are not the member of this group.")
+
+
+
+
 def process_upi_id(msg, group_name, user_id, username):
     upi_id = msg.text
     bot.send_message(user_id, "Thank you for providing your UPI ID.")
@@ -226,6 +257,7 @@ mappings = {
     'bye': bye,
     'create_group': create_group,
     'join_group': initiate_add_to_group_request,
+    'leave_group':leave_group_request,
     None: default_handler
 }
 
