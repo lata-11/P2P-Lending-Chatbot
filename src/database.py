@@ -80,6 +80,14 @@ def get_admin_id(group_name):
         return document.get("admin_id")
     return None
 
+def get_upi_id(member_name):
+    member_collection = db["Members"]
+    document = member_collection.find_one({"Member_name": member_name})
+    if document:
+        return document.get("upi_id")
+    return None
+
+
 def is_join_code_correct(group_name, join_code):
     group = db["Groups"]
     document = group.find_one({"name": group_name, "join_code": join_code})
@@ -90,7 +98,23 @@ def is_group_exists(group_name):
     document = group.find_one({"name": group_name})
     return bool(document)
 
-def lend_proposals(lender_tid, group_name, interest, borrower_tid):#tid is the telegram id
+def add_proposal(lender_id, group_id, interest, borrower_id=None):
+    try:
+        collection = db["Proposals"]
+        # group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+        record = {
+            "lender_id": lender_id,
+            "borrower_id": borrower_id,
+            "group_id": group_id,
+            "interest": interest
+        }
+        collection.insert_one(record)
+        return "Your proposal added successfully."
+    except Exception as e:
+        return f"Error occurred while adding proposal: {str(e)}"
+
+
+def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):#tid is the telegram id
     collection = db["Active_Proposals"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     record = {"group_id": group_id, "lender_id": lender_tid, "borrower_id": borrower_tid, "interest": interest}

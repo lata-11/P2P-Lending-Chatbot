@@ -67,13 +67,13 @@ def borrow_loan(msg):
     bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
 
 def process_loan_request(msg, user_id, group_id):
-    loan_amount = extract_numeric_value(msg.text)
+    loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        create_poll(msg, user_id, username)
+        create_poll(msg, user_id, username,loan_amount, group_id)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
@@ -177,26 +177,46 @@ def process_phone_number(msg, group_name, user_id, username, upi_id):
     bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
     
 #create poll
-def create_poll(group_name, user_id, username):
-    sent_msg ="A group member of yours has requested a loan. Are you willing to give?"
+def create_poll(msg, user_id, username, loan_amount, group_id):
+    sent_msg =f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     bot.send_message(user_id,sent_msg, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_name, user_id, username))
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg,group_id, loan_amount, user_id, username))
 
-def handle_poll_response(msg, group_name, user_id, username):
+def handle_poll_response(msg, group_id, loan_amount, user_id, username):
     user_response = msg.text.lower()
-    if user_response == "yes":
-            bot.send_message(user_id, f"You voted 'Yes! Thank you for lending.")
-            send_upi_details(user_id, username)
-    elif user_response == "no":
-         bot.send_message(user_id, "You voted 'No'!")
-         
+    upi_id = get_upi_id(username)  
 
+    if user_response == "yes":
+        bot.send_message(user_id, "You voted 'Yes'! Thank you for lending.")
+        get_proposal(msg, user_id, group_id, loan_amount)
+        #send_upi_details(user_id, upi_id)
+    elif user_response == "no":
+        bot.send_message(user_id, "You voted 'No'!")
+
+         
+# get upi id
 def send_upi_details(user_id, upi_id):
     send_msg= f"Hi, you wished to lend a loan. Here are the details. UPI ID: {upi_id}"
     bot.send_message(user_id, send_msg)
+
+#proposal    
+def get_proposal(msg, user_id, group_id, loan_amount):
+    send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
+    bot.send_message(user_id, send_msg)
     
+    def process_next_step(msg):
+        process_interest_rate(msg, group_id, user_id)
+
+    bot.register_next_step_handler(msg, process_next_step)
+
+def process_interest_rate(msg, group_id, user_id):
+    interest_rate = msg.text
+    # print(interest_rate)
+    add_proposal(user_id, group_id, interest_rate, user_id)  # 2nd user_id is borrower id
+    bot.send_message(user_id, "Thanks for providing the interest rate!")
+
     
 #mapping
 mappings = {
