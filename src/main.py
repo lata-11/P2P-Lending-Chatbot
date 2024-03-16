@@ -1,9 +1,11 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
 from database import *
 import re
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+API_KEY = '6820242360:AAFEkPpQekkE2snCEDQN6EmJLtptrMlYv3A'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
@@ -70,13 +72,13 @@ def borrow_loan(msg):
 
 
 def process_loan_request(msg, user_id, group_id):
-    loan_amount = extract_numeric_value(msg.text)
+    loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        create_poll(msg, user_id, username)
+        create_poll(msg, user_id, username,loan_amount, group_id)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
@@ -162,30 +164,102 @@ def send_request_to_admin(group_name, user_id, username):
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        if add_member(group_name, user_id,username):
-            bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
-        else:
-            bot.send_message(user_id, "You are already a member of this group.")
+        bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan.")
+        # Register a handler to capture UPI ID
+        bot.register_next_step_handler(msg, lambda msg: process_upi_id(msg, group_name, user_id, username))
     elif admin_response == "no":
         bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
     else:
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
+
+#remove from group
+
+def leave_group_request(msg):
+    user_id=msg.from_user.id
+    username=msg.from_user.username
+    if username is None:
+        bot.send_message(user_id,"Please set your Telegram username before interacting with this bot.You will be known by that username in the group. So please set it accordingly.")
+        return
+    else:
+        bot.send_message(user_id, "Please enter the name of the group you want to exit. Please keep in mind that name is case sensitive.")
+        bot.register_next_step_handler(msg, lambda msg: process_group_name_for_removal(msg, user_id, username))
+
+def process_group_name_for_removal(msg, user_id, username):
+    group_name = msg.text
+    if is_group_exists(group_name):
+        bot.register_next_step_handler(msg, lambda msg: process_removal_request(msg, user_id, username, group_name))
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+        return leave_group_request(msg)
+    
+def process_removal_request(msg, user_id, username,group_name):
+    if(leave_group(username,user_id,group_name)):
+        bot.send_message(user_id,f"You have been removed from the group '{group_name}' ,Successfully.")
+    else:
+        bot.send_message(user_id,"Invalid request. You are not the member of this group.")
+
+
+
+
+def process_upi_id(msg, group_name, user_id, username):
+    upi_id = msg.text
+    bot.send_message(user_id, "Thank you for providing your UPI ID.")
+    
+    bot.send_message(user_id, "Please provide your phone number linked to your UPI ID.")
+    # Register a handler to capture phone number
+    bot.register_next_step_handler(msg, lambda msg: process_phone_number(msg, group_name, user_id, username, upi_id))
+
+def process_phone_number(msg, group_name, user_id, username, upi_id):
+    phone_number = msg.text
+    bot.send_message(user_id, "Thank you for providing your phone number.")
+    
+    # Add member with UPI ID and phone number
+    add_member(group_name, user_id, username, upi_id, phone_number)
+    
+    bot.send_message(user_id, f"Congratulations! You have been added to the group '{group_name}'.")
+    
 #create poll
-def create_poll(group_name, user_id, username):
-    sent_msg ="A group member of yours has requested a loan. Are you willing to give?"
+def create_poll(msg, user_id, username, loan_amount, group_id):
+    sent_msg =f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     bot.send_message(user_id,sent_msg, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_name, user_id, username))
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg,group_id, loan_amount, user_id, username))
 
-def handle_poll_response(msg, group_name, user_id, username):
+def handle_poll_response(msg, group_id, loan_amount, user_id, username):
     user_response = msg.text.lower()
+    upi_id = get_upi_id(username)  
     if user_response == "yes":
-            bot.send_message(user_id, f"You voted 'Yes! Thank you for lending.")
+        bot.send_message(user_id, "You voted 'Yes'! Thank you for lending.")
+        get_proposal(msg, user_id, group_id, loan_amount)
+        #send_upi_details(user_id, upi_id)
     elif user_response == "no":
-         bot.send_message(user_id, "You voted 'No'!")
+        bot.send_message(user_id, "You voted 'No'!")
 
+         
+# get upi id
+def send_upi_details(user_id, upi_id):
+    send_msg= f"Hi, you wished to lend a loan. Here are the details. UPI ID: {upi_id}"
+    bot.send_message(user_id, send_msg)
+
+#proposal    
+def get_proposal(msg, user_id, group_id, loan_amount):
+    send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
+    bot.send_message(user_id, send_msg)
+    
+    def process_next_step(msg):
+        process_interest_rate(msg, group_id, user_id)
+
+    bot.register_next_step_handler(msg, process_next_step)
+
+def process_interest_rate(msg, group_id, user_id):
+    interest_rate = msg.text
+    # print(interest_rate)
+    add_proposal(user_id, group_id, interest_rate, user_id)  # 2nd user_id is borrower id
+    bot.send_message(user_id, "Thanks for providing the interest rate!")
+
+    
 #delete_group
 def delete_group_request(msg):
     user_id = msg.from_user.id
@@ -214,6 +288,7 @@ def process_delete_group_password(msg, group_name):
     result = delete_group(group_name, admin_password)
     bot.send_message(user_id, result)
 
+
 #mapping
 mappings = {
     'greetings': send_greet,
@@ -223,6 +298,7 @@ mappings = {
     'create_group': create_group,
     'join_group': initiate_add_to_group_request,
     'delete_group': initiate_delete_group_request,
+    'leave_group':leave_group_request,
     None: default_handler
 }
 

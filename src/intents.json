@@ -75,25 +75,25 @@
             ]
         },
         {
-			"tag": "create_group",
-			"patterns": [
-                "Create a group", 
-                "Start a group", 
+            "tag": "create_group",
+            "patterns": [
+                "Create a group",
+                "Start a group",
                 "New group"
             ],
-			"responses": [
-				"Sure, let's create a new group. Please provide the details."
-			]
-		},
-		{
-			"tag": "join_group",
-			"patterns": [
-				"I want to join a group",
-				"Join a group",
-				"Add me to a group",
-				"Can I join a group?"
-			],
-			"responses": [
+            "responses": [
+                "Sure, let's create a new group. Please provide the details."
+            ]
+        },
+        {
+            "tag": "join_group",
+            "patterns": [
+                "I want to join a group",
+                "Join a group",
+                "Add me to a group",
+                "Can I join a group?"
+            ],
+            "responses": [
                 "Sure, please provide the group name and join code."
             ]
 		},
@@ -108,7 +108,18 @@
 			"responses": [
 				"Sure, please provide the name of the group you want to delete."
 			]
-		}
-
+        },
+        {
+            "tag": "leave_group",
+            "patterns": [
+                "I want to leave a group",
+                "Leave a group",
+                "Remove me from a group",
+                "exit a group"
+            ],
+            "responses": [
+                "Sure,please provide the group name."
+            ]
+        }
     ]
 }
