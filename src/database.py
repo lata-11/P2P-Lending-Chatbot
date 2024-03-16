@@ -41,6 +41,21 @@ def remove_member(member_name, group_name):
     else:
         return "Entry not found." 
     
+def leave_group(member_name,member_id,group_name):
+    member_collection=db["Members"]
+    group_id=db["Groups"].find_one({"name":group_name}).get("_id")
+    existing_member = member_collection.find_one({"telegram_id": member_id})
+    if existing_member:
+        group_ids= existing_member.get("Group_id",[])
+        if group_id not in group_ids:
+            return False
+        else:
+            member_collection.update_one({"telegram_id":member_id},{"$pull":{"Group_id":group_id}})
+            return True
+    else:
+        return False
+
+
 def add_member(group_name,member_id,member_name):
     member_collections = db["Members"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
