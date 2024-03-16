@@ -24,6 +24,10 @@ def echo_all(message):
     if add_reply:
         bot.reply_to(message, str(reply_msg))
         
+@bot.message_handler(commands=["delete_group"])
+def initiate_delete_group_request(msg):
+    delete_group_request(msg)
+ 
 #greet
 def send_greet(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
@@ -181,6 +185,34 @@ def handle_poll_response(msg, group_name, user_id, username):
             bot.send_message(user_id, f"You voted 'Yes! Thank you for lending.")
     elif user_response == "no":
          bot.send_message(user_id, "You voted 'No'!")
+
+#delete_group
+def delete_group_request(msg):
+    user_id = msg.from_user.id
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
+        return
+    bot.send_message(user_id, "Please enter the name of the group you want to delete:")
+    bot.register_next_step_handler(msg, lambda msg: process_delete_group_name(msg, user_id))
+
+def process_delete_group_name(msg, user_id):
+    group_name = msg.text
+    if(is_group_exists(group_name)):
+        admin_id = get_admin_id(group_name)
+        if admin_id == user_id:
+            bot.send_message(user_id, f"Please enter the admin password for the group '{group_name}':")
+            bot.register_next_step_handler(msg, lambda msg: process_delete_group_password(msg, group_name))
+        else:
+            bot.send_message(user_id, "You are not the admin of this group. You cannot delete it.")
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+
+def process_delete_group_password(msg, group_name):
+    admin_password = msg.text
+    user_id = msg.from_user.id
+    result = delete_group(group_name, admin_password)
+    bot.send_message(user_id, result)
 
 #mapping
 mappings = {

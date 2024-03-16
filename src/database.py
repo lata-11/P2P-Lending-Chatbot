@@ -88,3 +88,23 @@ def display_proposals(member_id,group_name):
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     proposals = collection.find({"borrower_id": member_id, "group_id": group_id}, {"_id": 1, "interest": 1})
     return proposals
+
+def delete_group(group_name, admin_password):
+    group_collection = db["Groups"]
+    admin_id = get_admin_id(group_name)
+    
+    if not admin_login(admin_id, admin_password, group_name):
+        return "Incorrect admin password"
+    
+    result = group_collection.delete_one({"name": group_name})
+    
+    if result.deleted_count == 1:
+        remove_group_id_from_members(group_name)
+        return f"Group '{group_name}' deleted successfully."
+    else:
+        return f"Group '{group_name}' not found."
+
+def remove_group_id_from_members(group_name):
+    member_collection = db["Members"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    member_collection.update_many({}, {"$pull": {"Group_id": group_id}})
