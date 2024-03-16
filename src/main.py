@@ -222,6 +222,7 @@ mappings = {
     'bye': bye,
     'create_group': create_group,
     'join_group': initiate_add_to_group_request,
+    'delete_group': initiate_delete_group_request,
     None: default_handler
 }
 
