@@ -2,7 +2,6 @@ import telebot
 from neural_intents import GenericAssistant
 import sys
 from database import *
-from poll import create_poll
 import re
 API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
 
@@ -68,11 +67,12 @@ def borrow_loan(msg):
 
 def process_loan_request(msg, user_id, group_id):
     loan_amount = extract_numeric_value(msg.text)
+    username = msg.from_user.username
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        create_poll(msg)
+        create_poll(msg, user_id, username)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
@@ -167,13 +167,28 @@ def process_admin_response(msg, group_name, user_id, username):
     else:
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
+#create poll
+def create_poll(group_name, user_id, username):
+    sent_msg ="A group member of yours has requested a loan. Are you willing to give?"
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    bot.send_message(user_id,sent_msg, reply_markup=markup) 
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_name, user_id, username))
+
+def handle_poll_response(msg, group_name, user_id, username):
+    user_response = msg.text.lower()
+    if user_response == "yes":
+            bot.send_message(user_id, f"You voted 'Yes! Thank you for lending.")
+    elif user_response == "no":
+         bot.send_message(user_id, "You voted 'No'!")
+
 #mapping
 mappings = {
     'greetings': send_greet,
     'borrow_loan': borrow_loan,
     'borrow_amount': process_loan_request,
     'bye': bye,
-    'create_group': create_group,  
+    'create_group': create_group,
     'join_group': initiate_add_to_group_request,
     None: default_handler
 }
