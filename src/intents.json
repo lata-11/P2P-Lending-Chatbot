@@ -96,30 +96,6 @@
 			"responses": [
                 "Sure, please provide the group name and join code."
             ]
-		},
-        {
-            "tag": "create_poll",
-            "patterns": [
-                "Yes",
-                "Sure",
-                "Of course",
-                "Absolutely",
-                "Yeah",
-                "Yup",
-                "Yea",
-                "Yep",
-                "Definitely",
-                "Certainly",
-                "No",
-                "Nope",
-                "Nah",
-                "Not really",
-                "Negative",
-                "I don't think so"
-            ],
-            "responses": [
-                "Thank you for your response."
-            ]
-        }
+		}
     ]
 }
