@@ -1,0 +1,14 @@
+# Ignore compiled Python files
+*.pyc
+
+# Ignore files in the "logs" directory
+/logs/
+
+# Ignore environment-specific settings files
+*.env
+
+# Ignore all files in the "data" directory, but not subdirectories
+/data/*
+
+# Ignore .DS_Store files on macOS
+.DS_Store
