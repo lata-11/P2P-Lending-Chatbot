@@ -26,13 +26,15 @@ def echo_all(message):
     if add_reply:
         bot.reply_to(message, str(reply_msg))
         
+@bot.message_handler(commands=["delete_group"])
+def initiate_delete_group_request(msg):
+    delete_group_request(msg)
+ 
 #greet
 def send_greet(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
 
 # borrow loan
-
-
 def extract_numeric_value(sentence):
     matches = re.findall(r'\b\d+\b', sentence)
     
@@ -68,6 +70,7 @@ def borrow_loan(msg):
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
     bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
 
+
 def process_loan_request(msg, user_id, group_id):
     loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
@@ -79,7 +82,16 @@ def process_loan_request(msg, user_id, group_id):
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
-        
+
+def send_loan_notification(group_id, sender_id, loan_amount):
+    # members = get_group_members(group_id)
+    notification_msg = f"User {sender_id} has requested a loan of {loan_amount} rupees. Do you want to give him the loan? "
+
+    # for member_id in members:
+    #     if member_id != sender_id:
+    bot.send_message(sender_id, notification_msg)
+
+
 # create group
 def create_group(msg):
     user_id = msg.from_user.id
@@ -218,7 +230,6 @@ def create_poll(msg, user_id, username, loan_amount, group_id):
 def handle_poll_response(msg, group_id, loan_amount, user_id, username):
     user_response = msg.text.lower()
     upi_id = get_upi_id(username)  
-
     if user_response == "yes":
         bot.send_message(user_id, "You voted 'Yes'! Thank you for lending.")
         get_proposal(msg, user_id, group_id, loan_amount)
@@ -249,6 +260,35 @@ def process_interest_rate(msg, group_id, user_id):
     bot.send_message(user_id, "Thanks for providing the interest rate!")
 
     
+#delete_group
+def delete_group_request(msg):
+    user_id = msg.from_user.id
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
+        return
+    bot.send_message(user_id, "Please enter the name of the group you want to delete:")
+    bot.register_next_step_handler(msg, lambda msg: process_delete_group_name(msg, user_id))
+
+def process_delete_group_name(msg, user_id):
+    group_name = msg.text
+    if(is_group_exists(group_name)):
+        admin_id = get_admin_id(group_name)
+        if admin_id == user_id:
+            bot.send_message(user_id, f"Please enter the admin password for the group '{group_name}':")
+            bot.register_next_step_handler(msg, lambda msg: process_delete_group_password(msg, group_name))
+        else:
+            bot.send_message(user_id, "You are not the admin of this group. You cannot delete it.")
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+
+def process_delete_group_password(msg, group_name):
+    admin_password = msg.text
+    user_id = msg.from_user.id
+    result = delete_group(group_name, admin_password)
+    bot.send_message(user_id, result)
+
+
 #mapping
 mappings = {
     'greetings': send_greet,
@@ -257,6 +297,7 @@ mappings = {
     'bye': bye,
     'create_group': create_group,
     'join_group': initiate_add_to_group_request,
+    'delete_group': initiate_delete_group_request,
     'leave_group':leave_group_request,
     None: default_handler
 }
