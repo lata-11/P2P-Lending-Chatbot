@@ -30,7 +30,8 @@ def add_transaction(borrower_id, lender_id, group_id, amount, time):
 def admin_login(admin_id, admin_password, group_name):
     group = db["Groups"]
     if not (group.find_one({"admin_id": admin_id, "admin_password": admin_password, "name": group_name})):
-        return "Incorrect Credentials"
+        return False
+    return True
     
 def remove_member(member_name, group_name):
     collection = db["Members"]
@@ -146,6 +147,7 @@ def display_proposals(member_id,group_name):
 
 def delete_group(group_name, admin_password):
     group_collection = db["Groups"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     admin_id = get_admin_id(group_name)
     
     if not admin_login(admin_id, admin_password, group_name):
@@ -154,12 +156,11 @@ def delete_group(group_name, admin_password):
     result = group_collection.delete_one({"name": group_name})
     
     if result.deleted_count == 1:
-        remove_group_id_from_members(group_name)
+        remove_group_id_from_members(group_id)
         return f"Group '{group_name}' deleted successfully."
     else:
         return f"Group '{group_name}' not found."
 
-def remove_group_id_from_members(group_name):
+def remove_group_id_from_members(group_id):
     member_collection = db["Members"]
-    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     member_collection.update_many({}, {"$pull": {"Group_id": group_id}})
