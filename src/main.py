@@ -248,6 +248,21 @@ def process_interest_rate(msg, group_id, user_id):
     add_proposal(user_id, group_id, interest_rate, user_id)  # 2nd user_id is borrower id
     bot.send_message(user_id, "Thanks for providing the interest rate!")
 
+#show proposal to the borrower
+def all_proposals(user_id, group_id):
+    proposals = show_proposals(group_id)
+    if proposals.startswith("Error occurred"):
+        # Handle the error case
+        bot.send_message(user_id, proposals)
+    elif proposals == "No proposals found.":
+        bot.send_message(user_id, proposals)
+    else:
+        for proposal in proposals.split("\n"):
+            bot.send_message(user_id, proposal)
+
+
+    
+
     
 #mapping
 mappings = {

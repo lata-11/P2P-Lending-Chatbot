@@ -1,6 +1,8 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from bson import ObjectId
+import uuid
+
 import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
 
@@ -117,8 +119,9 @@ def is_group_exists(group_name):
 def add_proposal(lender_id, group_id, interest, borrower_id=None):
     try:
         collection = db["Proposals"]
-        # group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+        proposal_id = str(uuid.uuid4())  # Generate a unique proposal ID
         record = {
+            "proposal_id": proposal_id,
             "lender_id": lender_id,
             "borrower_id": borrower_id,
             "group_id": group_id,
@@ -128,6 +131,25 @@ def add_proposal(lender_id, group_id, interest, borrower_id=None):
         return "Your proposal added successfully."
     except Exception as e:
         return f"Error occurred while adding proposal: {str(e)}"
+
+
+def show_proposals(group_id):
+    try:
+        collection = db["Proposals"]
+        proposals = collection.find({"group_id": group_id})
+        if proposals.count() == 0:
+            return "No proposals found."
+        else:
+            proposal_list = []
+            for proposal in proposals:
+                lender_id = proposal["lender_id"]
+                borrower_id = proposal["borrower_id"]
+                interest = proposal["interest"]
+                proposal_info = f"Lender ID: {lender_id}, Borrower ID: {borrower_id}, Interest: {interest}"
+                proposal_list.append(proposal_info)
+            return "\n".join(proposal_list)
+    except Exception as e:
+        return f"Error occurred while fetching proposals: {str(e)}"
 
 
 def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):#tid is the telegram id
