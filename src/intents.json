@@ -96,6 +96,18 @@
             "responses": [
                 "Sure, please provide the group name and join code."
             ]
+		},
+        {
+			"tag": "delete_group",
+			"patterns": [
+				"I want to delete a group",
+				"Delete a group",
+				"Remove a group",
+				"Can I delete a group?"
+			],
+			"responses": [
+				"Sure, please provide the name of the group you want to delete."
+			]
         },
         {
             "tag": "leave_group",
@@ -108,6 +120,19 @@
             "responses": [
                 "Sure,please provide the group name."
             ]
+        },
+        {
+			"tag": "show_group_members",
+			"patterns": [
+				"Show members of group",
+				"Display members of group",
+				"List members of group",
+				"Who are the members of group",
+				"View members of group"
+			],
+			"responses": [
+				"Sure! Please provide the name of the group you want to view members for."
+			]			
         }
     ]
 }
