@@ -216,21 +216,38 @@ def process_interest_rate(msg, group_id, user_id):
     # print(interest_rate)
     add_proposal(user_id, group_id, interest_rate, user_id)  # 2nd user_id is borrower id
     bot.send_message(user_id, "Thanks for providing the interest rate!")
+    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id))
 
 #show proposal to the borrower
-def all_proposals(user_id, group_id):
+def all_proposals(msg, user_id, group_id):
+    bot.send_message(user_id, "Hi, Here are the proposals you got for the loan you asked.")
     proposals = show_proposals(group_id)
-    if proposals.startswith("Error occurred"):
+    if isinstance(proposals, str) and proposals.startswith("Error occurred"):
         # Handle the error case
         bot.send_message(user_id, proposals)
     elif proposals == "No proposals found.":
         bot.send_message(user_id, proposals)
     else:
-        for proposal in proposals.split("\n"):
-            bot.send_message(user_id, proposal)
+        for i, interest_rate in enumerate(proposals, start=1):
+            bot.send_message(user_id, f"{i}. Interest Rate/day: {interest_rate}")
+        bot.send_message(user_id, "Please choose a proposal by entering the corresponding number.")
+        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
 
-
-    
+#choose a proposal
+def choose_proposal(msg, user_id, group_id, proposals):
+    try:
+        choice = int(msg.text)
+        if choice < 1 or choice > len(proposals):
+            bot.send_message(user_id, "Invalid choice. Please enter a valid proposal number.")
+            bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
+            return
+        chosen_proposal = proposals[choice - 1]  # Adjust index to zero-based
+        bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal}")
+        # Process further if needed
+    except ValueError:
+        bot.send_message(user_id, "Invalid input. Please enter a number.")
+        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
+        
 
     
 #mapping
