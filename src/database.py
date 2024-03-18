@@ -164,3 +164,9 @@ def delete_group(group_name, admin_password):
 def remove_group_id_from_members(group_id):
     member_collection = db["Members"]
     member_collection.update_many({}, {"$pull": {"Group_id": group_id}})
+
+def get_group_members(group_name):
+    member_collection = db["Members"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    members = member_collection.find({"Group_id": group_id}, {"Member_name": 1})
+    return list(members)

@@ -30,6 +30,10 @@ def echo_all(message):
 def initiate_delete_group_request(msg):
     delete_group_request(msg)
  
+@bot.message_handler(commands=["show_group_members"])
+def initiate_show_group_members_request(msg):
+    delete_group_request(msg)
+
 #greet
 def send_greet(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
@@ -288,6 +292,37 @@ def process_delete_group_password(msg, group_name):
     result = delete_group(group_name, admin_password)
     bot.send_message(user_id, result)
 
+#show group members
+def show_group_members_request(msg):
+    user_id = msg.from_user.id
+    send_msg = "Sure! Please provide the name of the group you want to view members for."
+    bot.send_message(user_id, send_msg)
+    bot.register_next_step_handler(msg, lambda msg: process_group_name_for_display_members(msg, user_id))
+
+def process_group_name_for_display_members(msg, user_id):
+    group_name = msg.text
+    if is_group_exists(group_name):
+        admin_id = get_admin_id(group_name)
+        if admin_id == user_id:
+            bot.send_message(user_id, f"Please enter the admin password for the group '{group_name}':")
+            bot.register_next_step_handler(msg, lambda msg: process_display_members_password(msg, group_name))
+        else:
+            bot.send_message(user_id, "You are not the admin of this group. Only admins can view the members.")
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+
+def process_display_members_password(msg, group_name):
+    admin_password = msg.text
+    user_id = msg.from_user.id
+    if not admin_login(user_id, admin_password, group_name):
+        bot.send_message(user_id, "Incorrect admin password. Access denied.")
+        return
+    members = get_group_members(group_name)
+    if members:
+        member_list = "\n".join([f"@{member['Member_name']}" for member in members])
+        bot.send_message(user_id, f"Members of group '{group_name}':\n{member_list}")
+    else:
+        bot.send_message(user_id, f"No members found in group '{group_name}'.")
 
 #mapping
 mappings = {
@@ -299,6 +334,7 @@ mappings = {
     'join_group': initiate_add_to_group_request,
     'delete_group': initiate_delete_group_request,
     'leave_group':leave_group_request,
+    'show_group_members': show_group_members_request,
     None: default_handler
 }
 
