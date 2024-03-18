@@ -137,20 +137,18 @@ def add_proposal(lender_id, group_id, interest, borrower_id=None):
 def show_proposals(group_id):
     try:
         collection = db["Proposals"]
-        proposals = collection.find({"group_id": group_id})
-        if proposals.count() == 0:
+        proposals = list(collection.find({"group_id": group_id}))  
+        count = len(proposals)  # Get the count of documents
+        if count == 0:
             return "No proposals found."
         else:
-            proposal_list = []
+            interest_rates = []  
             for proposal in proposals:
-                lender_id = proposal["lender_id"]
-                borrower_id = proposal["borrower_id"]
-                interest = proposal["interest"]
-                proposal_info = f"Lender ID: {lender_id}, Borrower ID: {borrower_id}, Interest: {interest}"
-                proposal_list.append(proposal_info)
-            return "\n".join(proposal_list)
+                interest_rates.append(proposal["interest"])  
+            return interest_rates  
     except Exception as e:
         return f"Error occurred while fetching proposals: {str(e)}"
+
 
 
 def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):#tid is the telegram id
