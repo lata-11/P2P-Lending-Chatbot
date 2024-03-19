@@ -32,7 +32,8 @@ def add_transaction(borrower_id, lender_id, group_id, amount, time):
 def admin_login(admin_id, admin_password, group_name):
     group = db["Groups"]
     if not (group.find_one({"admin_id": admin_id, "admin_password": admin_password, "name": group_name})):
-        return "Incorrect Credentials"
+        return False
+    return True
     
 def remove_member(member_name, group_name):
     collection = db["Members"]
@@ -44,6 +45,22 @@ def remove_member(member_name, group_name):
     else:
         return "Entry not found." 
     
+
+def leave_group(member_name,member_id,group_name):
+    member_collection=db["Members"]
+    group_id=db["Groups"].find_one({"name":group_name}).get("_id")
+    existing_member = member_collection.find_one({"telegram_id": member_id})
+    if existing_member:
+        group_ids= existing_member.get("Group_id",[])
+        if group_id not in group_ids:
+            return False
+        else:
+            member_collection.update_one({"telegram_id":member_id},{"$pull":{"Group_id":group_id}})
+            return True
+    else:
+        return False
+
+
 def add_member(group_name, member_id, member_name, upi_id=None, phone_number=None):
     member_collections = db["Members"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
@@ -121,7 +138,7 @@ def show_proposals(group_id):
     try:
         collection = db["Proposals"]
         proposals = list(collection.find({"group_id": group_id}))  
-        count = len(proposals)  # Get the count of documents
+        count = len(proposals)
         if count == 0:
             return "No proposals found."
         else:
@@ -134,7 +151,7 @@ def show_proposals(group_id):
 
 
 
-def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):#tid is the telegram id
+def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):
     collection = db["Active_Proposals"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     record = {"group_id": group_id, "lender_id": lender_tid, "borrower_id": borrower_tid, "interest": interest}
@@ -147,3 +164,49 @@ def display_proposals(member_id,group_name):
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     proposals = collection.find({"borrower_id": member_id, "group_id": group_id}, {"_id": 1, "interest": 1})
     return proposals
+
+def delete_group(group_name, admin_password):
+    group_collection = db["Groups"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    admin_id = get_admin_id(group_name)
+    
+    if not admin_login(admin_id, admin_password, group_name):
+        return "Incorrect admin password"
+    
+    result = group_collection.delete_one({"name": group_name})
+    
+    if result.deleted_count == 1:
+        remove_group_id_from_members(group_id)
+        return f"Group '{group_name}' deleted successfully."
+    else:
+        return f"Group '{group_name}' not found."
+
+def remove_group_id_from_members(group_id):
+    member_collection = db["Members"]
+    member_collection.update_many({}, {"$pull": {"Group_id": group_id}})
+
+def get_group_members(group_name):
+    member_collection = db["Members"]
+    group_id = db["Groups"].find_one({"name": group_name}).get("_id")
+    members = member_collection.find({"Group_id": group_id}, {"Member_name": 1})
+    return list(members)
+
+def get_groups_of_member(member_id):
+    member_collection = db["Members"]
+    member_document = member_collection.find_one({"telegram_id": member_id}, {"Group_id": 1})
+    if member_document:
+        group_ids = member_document.get("Group_id", [])
+        group_collection = db["Groups"]
+        member_groups = group_collection.find({"_id": {"$in": group_ids}}, {"name": 1})
+        # print([group['name'] for group in member_groups])
+        return [group['name'] for group in member_groups]
+    else:
+        return []
+
+def get_group_id(group_name):
+    group_collection = db["Groups"]
+    group_document = group_collection.find_one({"name": group_name}, {"_id": 1})
+    if group_document:
+        return group_document.get("_id")
+    else:
+        return None
