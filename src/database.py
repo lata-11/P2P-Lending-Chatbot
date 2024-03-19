@@ -2,6 +2,7 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from bson import ObjectId
 import uuid
+from datetime import datetime
 
 import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
@@ -26,6 +27,9 @@ def group_creation(name, admin_id, admin_password, join_code, admin_name):
 
 def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time=None):
     transaction = db["Transaction"]
+    
+    current_date = datetime.now()
+
     record = {
         "Borrower_id": borrower_id,
         "Lender_id": lender_id,
@@ -33,8 +37,10 @@ def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, ret
         "loan_amount": loan_amount,
         "return_time": return_time,
         "interest": interest,
-        "Return_status": "Pending"
+        "Return_status": "Pending",
+        "transaction_date": current_date  # Add current date to the record
     }
+    
     transaction.insert_one(record)
 
 def admin_login(admin_id, admin_password, group_name):
