@@ -5,7 +5,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 from database import *
 import re
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
@@ -315,27 +315,23 @@ def process_group_name_for_join(msg, user_id, username):
 def process_join_code_for_join(msg, user_id, username, group_name):
     join_code = msg.text
     if is_join_code_correct(group_name, join_code):
-        send_request_to_admin(group_name, user_id, username)
         bot.send_message(user_id, "Your request has been sent to the admin. You will be notified once the admin acknowledges your request.")
+        admin_id = get_admin_id(group_name)
+        if admin_id is not None:
+            notification_msg = f"User @{username} wants to join the group '{group_name}'. Do you approve?"  
+            markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            markup.add("Yes", "No")
+            bot.send_message(admin_id, notification_msg, reply_markup=markup)
+            bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: process_admin_response(msg, group_name, user_id, username))
     else:
         bot.send_message(user_id, "Incorrect join code. Please try again.")
         return add_to_group_request(msg)
         
-def send_request_to_admin(group_name, user_id, username):
-    admin_id = get_admin_id(group_name)
-    if admin_id is not None:
-        notification_msg = f"User @{username} wants to join the group '{group_name}'. Do you approve?"  
-        markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
-        markup.add("Yes", "No")
-        bot.send_message(admin_id, notification_msg, reply_markup=markup)
-        bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: process_admin_response(msg, group_name, user_id, username))
-
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan.")
-        # Register a handler to capture UPI ID
-        bot.register_next_step_handler(msg, lambda msg: process_upi_id(msg, group_name, user_id, username))
+        bot.send_message(user_id, "Your request to join has been accepted by admin. Please provide your UPI ID that you'll use for lending/receiving a loan.")
+        bot.register_next_step_handler_by_chat_id(user_id, lambda msg: process_upi_id(msg, group_name, user_id, username))
     elif admin_response == "no":
         bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
     else:
@@ -344,9 +340,7 @@ def process_admin_response(msg, group_name, user_id, username):
 def process_upi_id(msg, group_name, user_id, username):
     upi_id = msg.text
     bot.send_message(user_id, "Thank you for providing your UPI ID.")
-    
     bot.send_message(user_id, "Please provide your phone number linked to your UPI ID.")
-    # Register a handler to capture phone number
     bot.register_next_step_handler(msg, lambda msg: process_phone_number(msg, group_name, user_id, username, upi_id))
 
 def process_phone_number(msg, group_name, user_id, username, upi_id):
