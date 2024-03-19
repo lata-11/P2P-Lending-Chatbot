@@ -139,27 +139,31 @@ def handle_poll_response(msg, group_id, loan_amount, user_id, username):
     elif user_response == "no":
         bot.send_message(user_id, "You voted 'No'!")
 
+
+
 #proposal    
 def get_proposal(msg, user_id, group_id, loan_amount):
     send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
     bot.send_message(user_id, send_msg)
     
-    def process_next_step(msg):
-        process_interest_rate(msg, group_id, user_id)
+    def process_next_step(msg, loan_amount):
+        process_interest_rate(msg, group_id, user_id, loan_amount)
 
-    bot.register_next_step_handler(msg, process_next_step)
+    bot.register_next_step_handler(msg, process_next_step, loan_amount)
 
-def process_interest_rate(msg, group_id, user_id):
+def process_interest_rate(msg, group_id, user_id, loan_amount):
     interest_rate = msg.text
-    add_proposal(user_id, group_id, interest_rate, user_id)  # 2nd user_id is borrower id
+    # print(interest_rate)
+    add_proposal(user_id, group_id, interest_rate, loan_amount, user_id)  # 2nd user_id is borrower id
     bot.send_message(user_id, "Thanks for providing the interest rate!")
-    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id))
+    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id, loan_amount))
 
 #show proposal to the borrower
-def all_proposals(msg, user_id, group_id):
+def all_proposals(msg, user_id, group_id, loan_amount):
     bot.send_message(user_id, "Hi, Here are the proposals you got for the loan you asked.")
     proposals = show_proposals(group_id)
     if isinstance(proposals, str) and proposals.startswith("Error occurred"):
+        # Handle the error case
         bot.send_message(user_id, proposals)
     elif proposals == "No proposals found.":
         bot.send_message(user_id, proposals)
@@ -167,23 +171,57 @@ def all_proposals(msg, user_id, group_id):
         for i, interest_rate in enumerate(proposals, start=1):
             bot.send_message(user_id, f"{i}. Interest Rate/day: {interest_rate}")
         bot.send_message(user_id, "Please choose a proposal by entering the corresponding number.")
-        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
+        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
 
-#choose a proposal
-def choose_proposal(msg, user_id, group_id, proposals):
+def choose_proposal(msg, user_id, group_id, loan_amount, proposals):
     try:
         choice = int(msg.text)
         if choice < 1 or choice > len(proposals):
             bot.send_message(user_id, "Invalid choice. Please enter a valid proposal number.")
-            bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
+            bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
             return
         chosen_proposal = proposals[choice - 1]  # Adjust index to zero-based
-        bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal}")
+        bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal}. Please wait we are transferring the amount to your UPI ID.")
         # Process further if needed
+        add_transaction(user_id, user_id, group_id, loan_amount, chosen_proposal)#2nd user_id is borrower id
+        send_upi_details(user_id, group_id, loan_amount)  
     except ValueError:
         bot.send_message(user_id, "Invalid input. Please enter a number.")
-        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, proposals)
+        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
+
+
+def send_upi_details(user_id, group_id, loan_amount):
+    member_collections = db["Members"]
+    member = member_collections.find_one({"telegram_id": user_id})
+    
+    if member:
+        member_name = member.get("Member_name", "Unknown")
+        upi_id = get_upi_id(member_name)  # Retrieve UPI ID for the member
+        if not upi_id:
+            print(f"UPI ID not found for member: {member_name}")
+            return
         
+        group_ids = member.get("Group_id", [])
+        if not group_ids:
+            print(f"No groups found for member: {member_name}")
+            return
+        
+        for group_id_in_db in group_ids:
+            # Retrieve group name using group_id
+            group_doc = db["Groups"].find_one({"_id": group_id_in_db})
+            if group_doc:
+                group_name = group_doc.get("name")
+                admin_id = get_admin_id(group_name)  
+                if admin_id and group_id_in_db==group_id:
+                    send_msg = f"Hi, A member {member_name} of your group {group_name} has requested a loan of {loan_amount}. Here are the details. UPI ID: {upi_id}"
+                    bot.send_message(admin_id, send_msg)  # Sending message to admin
+                else:
+                    print(f"Admin ID not found for group_name: {group_name}")
+            else:
+                print(f"Group not found for group_id: {group_id_in_db}")
+    else:
+        print("Member not found.")
+
 # create group
 def create_group(msg):
     user_id = msg.from_user.id
@@ -306,11 +344,7 @@ def process_removal_request(msg, user_id, username,group_name):
     else:
         bot.send_message(user_id,"Invalid request. You are not the member of this group.")
 
-# get upi id
-def send_upi_details(user_id, upi_id):
-    send_msg= f"Hi, you wished to lend a loan. Here are the details. UPI ID: {upi_id}"
-    bot.send_message(user_id, send_msg)
-    
+
 #delete_group
 def delete_group_request(msg):
     user_id = msg.from_user.id

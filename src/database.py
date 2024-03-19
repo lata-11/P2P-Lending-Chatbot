@@ -24,9 +24,17 @@ def group_creation(name, admin_id, admin_password, join_code, admin_name):
     return True
 
 
-def add_transaction(borrower_id, lender_id, group_id, amount, time):
+def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time=None):
     transaction = db["Transaction"]
-    record = {"Borrower_id": borrower_id, "Lender_id": lender_id, "Group_id": group_id, "Amount": amount, "Time" : time, "Return_status": "Pending"}
+    record = {
+        "Borrower_id": borrower_id,
+        "Lender_id": lender_id,
+        "Group_id": group_id,
+        "loan_amount": loan_amount,
+        "return_time": return_time,
+        "interest": interest,
+        "Return_status": "Pending"
+    }
     transaction.insert_one(record)
 
 def admin_login(admin_id, admin_password, group_name):
@@ -117,7 +125,7 @@ def is_group_exists(group_name):
     document = group.find_one({"name": group_name})
     return bool(document)
 
-def add_proposal(lender_id, group_id, interest, borrower_id=None):
+def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id=None):
     try:
         collection = db["Proposals"]
         proposal_id = str(uuid.uuid4())  # Generate a unique proposal ID
@@ -125,6 +133,7 @@ def add_proposal(lender_id, group_id, interest, borrower_id=None):
             "proposal_id": proposal_id,
             "lender_id": lender_id,
             "borrower_id": borrower_id,
+            "loan_amount": loan_amount,
             "group_id": group_id,
             "interest": interest
         }
