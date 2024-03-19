@@ -215,13 +215,53 @@ def send_upi_details(user_id, group_id, loan_amount):
                 if admin_id and group_id_in_db==group_id:
                     send_msg = f"Hi, A member {member_name} of your group {group_name} has requested a loan of {loan_amount}. Please send them the money. Here are the details. UPI ID: {upi_id}"
                     bot.send_message(admin_id, send_msg)  # Sending message to admin
+                    admin_confirmation(admin_id, loan_amount, user_id, member_name)
                 else:
                     print(f"Admin ID not found for group_name: {group_name}")
             else:
                 print(f"Group not found for group_id: {group_id_in_db}")
     else:
         print("Member not found.")
+        
+# ask confirmation of admin whether they did payment or not
+def admin_confirmation(admin_id, loan_amount, user_id, member_name):
+    admin_response_text = f"Have you made the payment of {loan_amount} to {member_name}? Please reply in 'Yes' or 'No'."
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    admin_response_msg = bot.send_message(admin_id, admin_response_text, reply_markup=markup) 
+    bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: handle_admin_response(msg, member_name, user_id, admin_id, loan_amount))
 
+    
+def handle_admin_response(msg, member_name, user_id, admin_id, loan_amount):
+    response = msg.text.strip().lower()
+    if response == "yes":
+        bot.send_message(admin_id, f"Great! I will inform {member_name}.")
+        borrower_confirmation(user_id, loan_amount)
+    elif response == "no":
+        bot.send_message(admin_id, "No problem! I will inform them.")
+    else:
+        bot.send_message(admin_id, "Invalid response. Please select 'Yes' or 'No'.")
+        
+# ask confirmation of borrower whether they got payment or not
+def borrower_confirmation(user_id, loan_amount):
+    borrower_response_text = f"Have you recieved the payment of {loan_amount}? Please reply in 'Yes' or 'No'."
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    borrower_response_msg = bot.send_message(user_id, borrower_response_text, reply_markup=markup) 
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_borrower_response(msg, user_id))
+
+    
+def handle_borrower_response(msg,user_id):
+    response = msg.text.strip().lower()
+    if response == "yes":
+        bot.send_message(user_id, f"Great! Thank you for your confirmation.")
+    elif response == "no":
+        bot.send_message(user_id, "Let me confirm then I ll let you know.")
+    else:
+        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
+
+
+   
 # create group
 def create_group(msg):
     user_id = msg.from_user.id
