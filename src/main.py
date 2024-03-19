@@ -330,8 +330,10 @@ def process_join_code_for_join(msg, user_id, username, group_name):
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        bot.send_message(user_id, "Your request to join has been accepted by admin. Please provide your UPI ID that you'll use for lending/receiving a loan.")
-        bot.register_next_step_handler_by_chat_id(user_id, lambda msg: process_upi_id(msg, group_name, user_id, username))
+        bot.send_message(user_id, "Your request to join has been accepted by admin.")
+        if(member_exists(user_id)==False):
+            bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan..")
+            bot.register_next_step_handler_by_chat_id(user_id, lambda msg: process_upi_id(msg, group_name, user_id, username))
     elif admin_response == "no":
         bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
     else:

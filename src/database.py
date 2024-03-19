@@ -225,3 +225,8 @@ def get_group_id(group_name):
         return group_document.get("_id")
     else:
         return None
+
+def member_exists(member_id):
+    member_collection = db["Members"]
+    member_document = member_collection.find_one({"telegram_id": member_id})
+    return bool(member_document)
