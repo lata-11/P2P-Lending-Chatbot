@@ -133,6 +133,20 @@
 			"responses": [
 				"Sure! Please provide the name of the group you want to view members for."
 			]			
-        }
+        },
+        {
+			"tag": "show_member_groups",
+			"patterns": [
+				"Show my groups",
+				"Display my groups",
+				"List my groups",
+				"What groups am I in?",
+				"View my groups"
+			],
+			"responses": [
+                "Sure! I'll show you the groups you're a part of."
+            ]
+		}
+
     ]
 }

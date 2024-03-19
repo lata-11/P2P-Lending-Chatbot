@@ -138,7 +138,7 @@ def show_proposals(group_id):
     try:
         collection = db["Proposals"]
         proposals = list(collection.find({"group_id": group_id}))  
-        count = len(proposals)  # Get the count of documents
+        count = len(proposals)
         if count == 0:
             return "No proposals found."
         else:
@@ -151,7 +151,7 @@ def show_proposals(group_id):
 
 
 
-def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):#tid is the telegram id
+def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):
     collection = db["Active_Proposals"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     record = {"group_id": group_id, "lender_id": lender_tid, "borrower_id": borrower_tid, "interest": interest}
@@ -190,3 +190,23 @@ def get_group_members(group_name):
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
     members = member_collection.find({"Group_id": group_id}, {"Member_name": 1})
     return list(members)
+
+def get_groups_of_member(member_id):
+    member_collection = db["Members"]
+    member_document = member_collection.find_one({"telegram_id": member_id}, {"Group_id": 1})
+    if member_document:
+        group_ids = member_document.get("Group_id", [])
+        group_collection = db["Groups"]
+        member_groups = group_collection.find({"_id": {"$in": group_ids}}, {"name": 1})
+        # print([group['name'] for group in member_groups])
+        return [group['name'] for group in member_groups]
+    else:
+        return []
+
+def get_group_id(group_name):
+    group_collection = db["Groups"]
+    group_document = group_collection.find_one({"name": group_name}, {"_id": 1})
+    if group_document:
+        return group_document.get("_id")
+    else:
+        return None
