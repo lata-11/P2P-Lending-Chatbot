@@ -198,7 +198,15 @@ def get_groups_of_member(member_id):
         group_ids = member_document.get("Group_id", [])
         group_collection = db["Groups"]
         member_groups = group_collection.find({"_id": {"$in": group_ids}}, {"name": 1})
-        print([group['name'] for group in member_groups])
+        # print([group['name'] for group in member_groups])
         return [group['name'] for group in member_groups]
     else:
         return []
+
+def get_group_id(group_name):
+    group_collection = db["Groups"]
+    group_document = group_collection.find_one({"name": group_name}, {"_id": 1})
+    if group_document:
+        return group_document.get("_id")
+    else:
+        return None

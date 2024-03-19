@@ -9,7 +9,6 @@ API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
-user_states = {}
 
 @bot.message_handler(commands=["start", "hello"])
 def send_hello_message(msg):
@@ -17,32 +16,22 @@ def send_hello_message(msg):
 
 @bot.message_handler(commands=["join_group"])
 def initiate_add_to_group_request(msg):
-    cancel_current_process(msg)
-    user_states[msg.from_user.id] = "join_group"
     add_to_group_request(msg)
     
 @bot.message_handler(commands=["create_group"])
 def initiate_create_group_request(msg):
-    cancel_current_process(msg)
-    user_states[msg.from_user.id] = "create_group"
     create_group(msg)
         
 @bot.message_handler(commands=["delete_group"])
 def initiate_delete_group_request(msg):
-    cancel_current_process(msg)
-    user_states[msg.from_user.id] = "delete_group"
     delete_group_request(msg)
     
 @bot.message_handler(commands=["borrow_loan"])
 def initiate_loan_process(msg):
-    cancel_current_process(msg)
-    user_states[msg.from_user.id] = "borrow_loan"
     get_member_groups(msg)
  
 @bot.message_handler(commands=["show_group_members"])
 def initiate_show_group_members_request(msg):
-    cancel_current_process(msg)
-    user_states[msg.from_user.id] = "show_group_members"
     show_group_members_request(msg)
 
 @bot.message_handler(func=lambda msg: True)
@@ -107,7 +96,8 @@ def process_group_selection(msg, user_id, member_groups):
             return
         chosen_group = member_groups[choice - 1] 
         bot.send_message(user_id, f"You've chosen group: {chosen_group['name']}")
-        borrow_loan(msg, chosen_group['Group_id'])
+        group_id=get_group_id(chosen_group['name'])
+        borrow_loan(msg, group_id)
     except ValueError:
         bot.send_message(user_id, "Invalid input. Please enter a number.")
 
@@ -381,21 +371,21 @@ def process_display_members_password(msg, group_name):
     else:
         bot.send_message(user_id, f"No members found in group '{group_name}'.")
 
-@bot.message_handler(commands=["cancel"])
-def cancel_process(msg):
+#show groups
+def show_member_groups(msg):
     user_id = msg.from_user.id
-    # Check if the user is currently in a process
-    if user_id in user_states:
-        del user_states[user_id]  # Remove the user's state
-        bot.send_message(user_id, "Current process canceled.")
+    username = msg.from_user.username
+    if username is None:
+        bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
+        return
+    member_groups = get_groups_of_member(user_id)
+    if not member_groups:
+        bot.send_message(user_id, "You are not a part of any group. Please create or join a group to proceed.")
+        return
     else:
-        bot.send_message(user_id, "No process to cancel.")
-
-def cancel_current_process(msg):
-    user_id = msg.from_user.id
-    if user_id in user_states:
-        del user_states[user_id]  # Remove the user's state
-        bot.send_message(user_id, "Current process canceled.")
+        group_list = [{"name": group} for group in member_groups]
+        group_display = "\n".join([f"{i+1}. {group['name']}" for i, group in enumerate(group_list)])
+        bot.send_message(user_id, "You are a member of the following groups:\n" + group_display)
 
 #mapping
 mappings = {
@@ -408,6 +398,7 @@ mappings = {
     'delete_group': initiate_delete_group_request,
     'leave_group':leave_group_request,
     'show_group_members': initiate_show_group_members_request,
+    'show_member_groups': show_member_groups,  
     None: default_handler
 }
 
