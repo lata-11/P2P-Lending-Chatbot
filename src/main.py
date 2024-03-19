@@ -213,7 +213,7 @@ def send_upi_details(user_id, group_id, loan_amount):
                 group_name = group_doc.get("name")
                 admin_id = get_admin_id(group_name)  
                 if admin_id and group_id_in_db==group_id:
-                    send_msg = f"Hi, A member {member_name} of your group {group_name} has requested a loan of {loan_amount}. Here are the details. UPI ID: {upi_id}"
+                    send_msg = f"Hi, A member {member_name} of your group {group_name} has requested a loan of {loan_amount}. Please send them the money. Here are the details. UPI ID: {upi_id}"
                     bot.send_message(admin_id, send_msg)  # Sending message to admin
                 else:
                     print(f"Admin ID not found for group_name: {group_name}")
