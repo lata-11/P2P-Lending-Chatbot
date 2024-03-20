@@ -52,7 +52,6 @@ def admin_login(admin_id, admin_password, group_name):
 def remove_member(member_name, group_name):
     collection = db["Members"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
-    print(group_id)
     result = collection.delete_one({"Member_name": member_name, "Group_id": group_id})
     if result.deleted_count == 1:
         return "Member removed successfully."
@@ -212,7 +211,6 @@ def get_groups_of_member(member_id):
         group_ids = member_document.get("Group_id", [])
         group_collection = db["Groups"]
         member_groups = group_collection.find({"_id": {"$in": group_ids}}, {"name": 1})
-        # print([group['name'] for group in member_groups])
         return [group['name'] for group in member_groups]
     else:
         return []
@@ -246,3 +244,7 @@ def already_member_of_group(member_id, group_id):
         return group_id in group_ids
     else:
         return False
+
+def add_old_member(member_id, group_id):
+    member_collection = db["Members"]
+    member_collection.update_one({"telegram_id": member_id}, {"$push": {"Group_id": group_id}})
