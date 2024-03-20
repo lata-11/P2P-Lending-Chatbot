@@ -2,7 +2,8 @@ import telebot
 from neural_intents import GenericAssistant
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-
+import uuid
+import time
 from database import *
 import re
 API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
@@ -102,68 +103,70 @@ def process_group_selection(msg, user_id, member_groups):
         bot.send_message(user_id, "Invalid input. Please enter a number.")
 
 def borrow_loan(msg,group_id):
-    user_id = msg.from_user.id
+    borrower_id = msg.from_user.id
+    message_time = msg.date
     if group_id == None:
-        bot.send_message(user_id, "Invalid group id. Please enter a valid group")
+        bot.send_message(borrower_id, "Invalid group id. Please enter a valid group")
+        bot.register_next_step_handler(msg, lambda msg: get_member_groups(msg)) 
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
-    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, borrower_id, group_id, message_time))
 
-
-def process_loan_request(msg, user_id, group_id):
+def process_loan_request(msg, borrower_id, group_id, stored_timestamp):
     loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        create_poll(msg, user_id, username,loan_amount, group_id)
+        loan_uuid = str(uuid.uuid4())  # Generate UUID
+        create_poll(msg, borrower_id,loan_amount, group_id,loan_uuid)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
 
 #create poll
-def create_poll(msg, user_id, username, loan_amount, group_id):
-    sent_msg =f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
+def create_poll(msg, borrower_id, username, loan_amount, group_id,loan_uuid,stored_timestamp):
+    sent_msg = f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
-    bot.send_message(user_id,sent_msg, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg,group_id, loan_amount, user_id, username))
-
-def handle_poll_response(msg, group_id, loan_amount, user_id, username):
-    user_response = msg.text.lower()
-    upi_id = get_upi_id(username)  
-    if user_response == "yes":
-        bot.send_message(user_id, "You voted 'Yes'! Thank you for lending.")
-        get_proposal(msg, user_id, group_id, loan_amount)
-        #send_upi_details(user_id, upi_id)
-    elif user_response == "no":
-        bot.send_message(user_id, "You voted 'No'!")
-
-
-
-#proposal    
-def get_proposal(msg, user_id, group_id, loan_amount):
-    send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
-    bot.send_message(user_id, send_msg)
     
-    def process_next_step(msg, loan_amount):
-        process_interest_rate(msg, group_id, user_id, loan_amount)
+    group_members = db["Members"].find({"Group_id": group_id})
+    for member in group_members:
+        user_id = member["telegram_id"]
+        if user_id != borrower_id and user_id != get_admin_id(group_id):
+            bot.send_message(user_id, sent_msg, reply_markup=markup) 
+            bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_id, loan_amount, user_id, borrower_id,loan_uuid,stored_timestamp))
 
-    bot.register_next_step_handler(msg, process_next_step, loan_amount)
+def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uuid,stored_timestamp):
+    response = msg.text.strip().lower()
+    message_time = msg.date
+    time_difference = message_time - stored_timestamp
 
-def process_interest_rate(msg, group_id, user_id, loan_amount):
+    if time_difference > 1 * 60:  #later will change to 30 mins or any time
+        bot.send_message(borrower_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
+        return
+    
+    if response == "yes":
+        bot.send_message(user_id, f"Thank you for your willingness to lend {loan_amount}.")
+        send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
+        bot.send_message(user_id, send_msg)
+        bot.register_next_step_handler_by_chat_id(user_id, lambda msg:process_interest_rate(msg, group_id, user_id, loan_amount,borrower_id,loan_uuid)) 
+    elif response == "no":
+        bot.send_message(user_id, "Thank you for your response.")
+    else:
+        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
+        return handle_poll_response(msg, group_id, loan_amount, user_id, borrower_id)
+
+def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_uuid):
     interest_rate = msg.text
-    # print(interest_rate)
-    add_proposal(user_id, group_id, interest_rate, loan_amount, user_id)  # 2nd user_id is borrower id
+    add_proposal(user_id, group_id, interest_rate, loan_amount, borrower_id,loan_uuid)
     bot.send_message(user_id, "Thanks for providing the interest rate!")
-    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id, loan_amount))
+    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id, loan_amount,loan_uuid))
 
-#show proposal to the borrower
-def all_proposals(msg, user_id, group_id, loan_amount):
+def all_proposals(msg, user_id, group_id, loan_amount,loan_uuid):
     bot.send_message(user_id, "Hi, Here are the proposals you got for the loan you asked.")
-    proposals = show_proposals(group_id)
+    proposals = show_proposals(loan_uuid)
     if isinstance(proposals, str) and proposals.startswith("Error occurred"):
-        # Handle the error case
         bot.send_message(user_id, proposals)
     elif proposals == "No proposals found.":
         bot.send_message(user_id, proposals)
@@ -479,4 +482,4 @@ assistant.train_model()
 assistant.save_model()
 
 
-bot.infinity_polling()
+bot.polling(non_stop=True)

@@ -131,12 +131,11 @@ def is_group_exists(group_name):
     document = group.find_one({"name": group_name})
     return bool(document)
 
-def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id=None):
+def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id,loan_uuid):
     try:
         collection = db["Proposals"]
-        proposal_id = str(uuid.uuid4())  # Generate a unique proposal ID
         record = {
-            "proposal_id": proposal_id,
+            "proposal_id": loan_uuid,
             "lender_id": lender_id,
             "borrower_id": borrower_id,
             "loan_amount": loan_amount,
@@ -149,10 +148,10 @@ def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id=None):
         return f"Error occurred while adding proposal: {str(e)}"
 
 
-def show_proposals(group_id):
+def show_proposals(loan_uuid):
     try:
         collection = db["Proposals"]
-        proposals = list(collection.find({"group_id": group_id}))  
+        proposals = list(collection.find({"proposal_id": loan_uuid}))  
         count = len(proposals)
         if count == 0:
             return "No proposals found."
