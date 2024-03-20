@@ -3,9 +3,9 @@ from neural_intents import GenericAssistant
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 import uuid
-import time
 from database import *
 import re
+import threading
 API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
@@ -104,29 +104,33 @@ def process_group_selection(msg, user_id, member_groups):
 
 def borrow_loan(msg,group_id):
     borrower_id = msg.from_user.id
-    message_time = msg.date
     if group_id == None:
         bot.send_message(borrower_id, "Invalid group id. Please enter a valid group")
         bot.register_next_step_handler(msg, lambda msg: get_member_groups(msg)) 
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
-    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, borrower_id, group_id, message_time))
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, borrower_id, group_id))
 
-def process_loan_request(msg, borrower_id, group_id, stored_timestamp):
+def process_loan_request(msg, borrower_id, group_id):
     loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
+    message_time = msg.date
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        loan_uuid = str(uuid.uuid4())  # Generate UUID
-        create_poll(msg, borrower_id,loan_amount, group_id,loan_uuid)
+        loan_uuid = str(uuid.uuid4()) 
+        create_poll(msg, borrower_id,loan_amount, group_id,loan_uuid,message_time)
+        schedule_all_proposals(loan_uuid)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
 
+def schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid):
+    threading.Timer(1 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
+
 #create poll
-def create_poll(msg, borrower_id, username, loan_amount, group_id,loan_uuid,stored_timestamp):
-    sent_msg = f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
+def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timestamp):
+    sent_msg = f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give? Please respond with 'Yes' or 'No' within 30 minutes."
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     
@@ -161,20 +165,20 @@ def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_
     interest_rate = msg.text
     add_proposal(user_id, group_id, interest_rate, loan_amount, borrower_id,loan_uuid)
     bot.send_message(user_id, "Thanks for providing the interest rate!")
-    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id, loan_amount,loan_uuid))
-
-def all_proposals(msg, user_id, group_id, loan_amount,loan_uuid):
-    bot.send_message(user_id, "Hi, Here are the proposals you got for the loan you asked.")
+    
+def all_proposals(borrower_id, group_id, loan_amount, loan_uuid):
+    bot.send_message(borrower_id, "Hi, Here are the proposals you got for the loan you asked.")
     proposals = show_proposals(loan_uuid)
     if isinstance(proposals, str) and proposals.startswith("Error occurred"):
-        bot.send_message(user_id, proposals)
+        bot.send_message(borrower_id, proposals)
     elif proposals == "No proposals found.":
-        bot.send_message(user_id, proposals)
+        bot.send_message(borrower_id, proposals)
     else:
-        for i, interest_rate in enumerate(proposals, start=1):
-            bot.send_message(user_id, f"{i}. Interest Rate/day: {interest_rate}")
-        bot.send_message(user_id, "Please choose a proposal by entering the corresponding number.")
-        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
+        proposal_messages = [f"{i+1}. Interest Rate/day: {interest_rate}" for i, interest_rate in enumerate(proposals, start=1)]
+        proposals_display = "\n".join(proposal_messages)
+        bot.send_message(borrower_id, proposals_display)
+        bot.send_message(borrower_id, "Please choose a proposal by entering the corresponding number.")
+        bot.register_next_step_handler_by_chat_id(borrower_id, lambda msg: choose_proposal(msg, borrower_id, group_id, loan_amount, proposals))
 
 def choose_proposal(msg, user_id, group_id, loan_amount, proposals):
     try:
