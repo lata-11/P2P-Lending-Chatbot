@@ -276,13 +276,11 @@ def handle_borrower_response(msg,user_id, loan_amount, admin_id):
     else:
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
-#drawing pie chart
 
 def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
     labels = ['Loan Amount', 'Interest Rate']
     sizes = [loan_amount, interest_rate]
 
-    # Draw first pie chart for loan amount vs. interest rate
     plt.figure(figsize=(8, 6))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.axis('equal') 
@@ -294,27 +292,23 @@ def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
     labels = ['Loan Amount', 'Extra repayment amount']
     sizes = [loan_amount, repayment_amount]
 
-    # Draw second pie chart for loan amount vs. repayment amount
     plt.figure(figsize=(8, 6))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.axis('equal') 
 
-    # Save the second pie chart as a PNG file
     plt.savefig('pie_chart2.png', format='png', bbox_inches='tight')
     plt.close()  
     c.drawImage('pie_chart2.png', 120, 150, width=300, height=200)
 
-#send repayment invoice/details to borrower
 def send_repay_details(user_id, loan_amount, admin_id):
     # Create a PDF file
     filename = f"repayment_details_{user_id}.pdf"
     c = canvas.Canvas(filename, pagesize=letter)
     
-    # Fetch the most recent transaction for the borrower ID
     transaction_collections = db["Transaction"]
     transaction = transaction_collections.find_one(
         {"Borrower_id": user_id},
-        sort=[("transaction_date", -1)]  # Sort by transaction_date in descending order
+        sort=[("transaction_date", -1)]  
     )
     group_collections = db["Groups"]
     group_name = get_group_name(admin_id)
@@ -331,20 +325,16 @@ def send_repay_details(user_id, loan_amount, admin_id):
         interest_rate= float(interest_rate)
         repayment_amount = loan_amount + (loan_amount + interest_rate) * repay_time
         
-        # Add content to the PDF
         c.drawString(100, 750, "Please find your repayment details in this invoice.")
         c.drawString(100, 730, f"Loan amount: ${loan_amount}")
         c.drawString(100, 710, f"Interest rate per day: {interest_rate}%")
         c.drawString(100, 690, f"Repay time: {repay_time}")
         c.drawString(100, 670, f"Repayment amount: ${repayment_amount}")
         
-        #draw pie chart between loan amount, interest rate and amount after repay time
         draw_pie_charts(c, loan_amount, interest_rate, repayment_amount-loan_amount)
         
-        # Save and close the PDF
         c.save()
         
-        # Send the PDF to the user
         with open(filename, "rb") as file:
             bot.send_document(user_id, file)
     else:
@@ -408,13 +398,13 @@ def process_group_name_for_join(msg, user_id, username):
     if is_group_exists(group_name):
         group_id = get_group_id(group_name)
         if(already_member_of_group(user_id,group_id)):
-            bot.send_message(user_id, "You are already a member of a group.")
+            bot.send_message(user_id, "You are already member of this group.")
             return
         bot.send_message(user_id, "Please enter the join code for the group. If you don't have it ask admin for the join code.")
         bot.register_next_step_handler(msg, lambda msg: process_join_code_for_join(msg, user_id, username, group_name))
     else:
         bot.send_message(user_id, f"Group '{group_name}' does not exist.")
-        return add_to_group_request(msg)
+        return 
 
 def process_join_code_for_join(msg, user_id, username, group_name):
     join_code = msg.text
