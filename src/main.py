@@ -125,7 +125,7 @@ def process_loan_request(msg, borrower_id, group_id):
         borrow_loan(msg)
 
 def schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid):
-    threading.Timer(1 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
+    threading.Timer(0.5 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
 
 #create poll
 def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timestamp):
@@ -136,12 +136,12 @@ def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timesta
     group_name=get_group_name(group_id)
     group_members = db["Members"].find({"Group_id": group_id})
     for member in group_members:
-        user_id = member["telegram_id"]
-        if user_id == borrower_id or user_id == get_admin_id(group_name):
+        lender_id = member["telegram_id"]
+        if lender_id == borrower_id or lender_id == get_admin_id(group_name):
             continue
         else:
-            bot.send_message(user_id, sent_msg, reply_markup=markup) 
-            bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_id, loan_amount, user_id, borrower_id,loan_uuid,stored_timestamp))
+            bot.send_message(lender_id, sent_msg, reply_markup=markup) 
+            bot.register_next_step_handler_by_chat_id(lender_id, lambda msg: handle_poll_response(msg, group_id, loan_amount, lender_id, borrower_id,loan_uuid,stored_timestamp))
 
 def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uuid,stored_timestamp):
     response = msg.text.strip().lower()
@@ -176,7 +176,7 @@ def all_proposals(borrower_id, group_id, loan_amount, loan_uuid):
     elif proposals == "No proposals found.":
         bot.send_message(borrower_id, proposals)
     else:
-        proposal_messages = [f"{i+1}. Interest Rate/day: {interest_rate}" for i, interest_rate in enumerate(proposals, start=1)]
+        proposal_messages = [f"{i}. Interest Rate/day: {interest_rate}" for i, interest_rate in enumerate(proposals, start=1)]
         proposals_display = "\n".join(proposal_messages)
         bot.send_message(borrower_id, proposals_display)
         bot.send_message(borrower_id, "Please choose a proposal by entering the corresponding number.")
@@ -191,8 +191,10 @@ def choose_proposal(msg, user_id, group_id, loan_amount, proposals):
             return
         chosen_proposal = proposals[choice - 1]  # Adjust index to zero-based
         bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal}. Please wait we are transferring the amount to your UPI ID.")
+        lender_id=chosen_proposal["lender_id"]
         # Process further if needed
-        add_transaction(user_id, user_id, group_id, loan_amount, chosen_proposal)#2nd user_id is borrower id
+        add_transaction(user_id, lender_id, group_id, loan_amount, chosen_proposal)
+        send_admin_upi_details(lender_id, group_id, loan_amount)
         send_upi_details(user_id, group_id, loan_amount)  
     except ValueError:
         bot.send_message(user_id, "Invalid input. Please enter a number.")

@@ -25,7 +25,7 @@ def group_creation(name, admin_id, admin_password, join_code, admin_name):
     return True
 
 
-def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time=None):
+def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time):
     transaction = db["Transaction"]
     
     current_date = datetime.now()
