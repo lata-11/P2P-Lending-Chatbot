@@ -25,7 +25,7 @@ def group_creation(name, admin_id, admin_password, join_code, admin_name, upi_id
     return True
 
 
-def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time=None):
+def add_transaction(borrower_id, lender_id, group_id, loan_amount, interest, return_time):
     transaction = db["Transaction"]
     
     current_date = datetime.now()
@@ -52,7 +52,6 @@ def admin_login(admin_id, admin_password, group_name):
 def remove_member(member_name, group_name):
     collection = db["Members"]
     group_id = db["Groups"].find_one({"name": group_name}).get("_id")
-    print(group_id)
     result = collection.delete_one({"Member_name": member_name, "Group_id": group_id})
     if result.deleted_count == 1:
         return "Member removed successfully."
@@ -138,12 +137,11 @@ def is_group_exists(group_name):
     document = group.find_one({"name": group_name})
     return bool(document)
 
-def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id=None):
+def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id,loan_uuid):
     try:
         collection = db["Proposals"]
-        proposal_id = str(uuid.uuid4())  # Generate a unique proposal ID
         record = {
-            "proposal_id": proposal_id,
+            "proposal_id": loan_uuid,
             "lender_id": lender_id,
             "borrower_id": borrower_id,
             "loan_amount": loan_amount,
@@ -156,10 +154,10 @@ def add_proposal(lender_id, group_id, interest, loan_amount, borrower_id=None):
         return f"Error occurred while adding proposal: {str(e)}"
 
 
-def show_proposals(group_id):
+def show_proposals(loan_uuid):
     try:
         collection = db["Proposals"]
-        proposals = list(collection.find({"group_id": group_id}))  
+        proposals = list(collection.find({"proposal_id": loan_uuid}))  
         count = len(proposals)
         if count == 0:
             return "No proposals found."
@@ -220,7 +218,6 @@ def get_groups_of_member(member_id):
         group_ids = member_document.get("Group_id", [])
         group_collection = db["Groups"]
         member_groups = group_collection.find({"_id": {"$in": group_ids}}, {"name": 1})
-        # print([group['name'] for group in member_groups])
         return [group['name'] for group in member_groups]
     else:
         return []
@@ -237,3 +234,24 @@ def member_exists(member_id):
     member_collection = db["Members"]
     member_document = member_collection.find_one({"telegram_id": member_id})
     return bool(member_document)
+
+def get_group_name(group_id):
+    group_collection = db["Groups"]
+    group_document = group_collection.find_one({"_id": group_id}, {"name": 1})
+    if group_document:
+        return group_document.get("name")
+    else:
+        return None
+    
+def already_member_of_group(member_id, group_id):
+    member_collection = db["Members"]
+    member_document = member_collection.find_one({"telegram_id": member_id})
+    if member_document:
+        group_ids = member_document.get("Group_id", [])
+        return group_id in group_ids
+    else:
+        return False
+
+def add_old_member(member_id, group_id):
+    member_collection = db["Members"]
+    member_collection.update_one({"telegram_id": member_id}, {"$push": {"Group_id": group_id}})
