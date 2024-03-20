@@ -229,3 +229,20 @@ def member_exists(member_id):
     member_collection = db["Members"]
     member_document = member_collection.find_one({"telegram_id": member_id})
     return bool(member_document)
+
+def get_group_name(group_id):
+    group_collection = db["Groups"]
+    group_document = group_collection.find_one({"_id": group_id}, {"name": 1})
+    if group_document:
+        return group_document.get("name")
+    else:
+        return None
+    
+def already_member_of_group(member_id, group_id):
+    member_collection = db["Members"]
+    member_document = member_collection.find_one({"telegram_id": member_id})
+    if member_document:
+        group_ids = member_document.get("Group_id", [])
+        return group_id in group_ids
+    else:
+        return False

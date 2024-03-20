@@ -50,7 +50,6 @@ def send_greet(msg):
 def bye(msg):
     bot.send_message(msg.chat.id, "Goodbye!")
     bot.stop_polling()
-    sys.exit(0)
 
 def thanks(msg):
     bot.send_message(msg.chat.id, "You're welcome:)")
@@ -120,7 +119,7 @@ def process_loan_request(msg, borrower_id, group_id):
         bot.reply_to(msg, response)
         loan_uuid = str(uuid.uuid4()) 
         create_poll(msg, borrower_id,loan_amount, group_id,loan_uuid,message_time)
-        schedule_all_proposals(loan_uuid)
+        schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
@@ -134,10 +133,13 @@ def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timesta
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     
+    group_name=get_group_name(group_id)
     group_members = db["Members"].find({"Group_id": group_id})
     for member in group_members:
         user_id = member["telegram_id"]
-        if user_id != borrower_id and user_id != get_admin_id(group_id):
+        if user_id == borrower_id or user_id == get_admin_id(group_name):
+            continue
+        else:
             bot.send_message(user_id, sent_msg, reply_markup=markup) 
             bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg, group_id, loan_amount, user_id, borrower_id,loan_uuid,stored_timestamp))
 
@@ -146,8 +148,8 @@ def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uu
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference > 1 * 60:  #later will change to 30 mins or any time
-        bot.send_message(borrower_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
+    if time_difference > 0.5 * 60:  #later will change to 30 mins or any time
+        bot.send_message(user_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     
     if response == "yes":
@@ -313,6 +315,10 @@ def add_to_group_request(msg):
 def process_group_name_for_join(msg, user_id, username):
     group_name = msg.text
     if is_group_exists(group_name):
+        group_id = get_group_id(group_name)
+        if(already_member_of_group(user_id,group_id)):
+            bot.send_message(user_id, "You are already a member of a group.")
+            return
         bot.send_message(user_id, "Please enter the join code for the group. If you don't have it ask admin for the join code.")
         bot.register_next_step_handler(msg, lambda msg: process_join_code_for_join(msg, user_id, username, group_name))
     else:
@@ -337,7 +343,7 @@ def process_join_code_for_join(msg, user_id, username, group_name):
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        bot.send_message(user_id, "Your request to join has been accepted by admin.")
+        bot.send_message(user_id, f"Your request to join has been accepted by admin. Congratulations! You have been added to the group '{group_name}'.")
         if(member_exists(user_id)==False):
             bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan..")
             bot.register_next_step_handler_by_chat_id(user_id, lambda msg: process_upi_id(msg, group_name, user_id, username))
