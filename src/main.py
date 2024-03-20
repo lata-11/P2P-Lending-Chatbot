@@ -1,6 +1,12 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
+import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+
+
 sys.stdout.reconfigure(encoding='utf-8')
 
 from database import *
@@ -140,7 +146,6 @@ def handle_poll_response(msg, group_id, loan_amount, user_id, username):
         bot.send_message(user_id, "You voted 'No'!")
 
 
-
 #proposal    
 def get_proposal(msg, user_id, group_id, loan_amount):
     send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
@@ -236,33 +241,108 @@ def handle_admin_response(msg, member_name, user_id, admin_id, loan_amount):
     response = msg.text.strip().lower()
     if response == "yes":
         bot.send_message(admin_id, f"Great! I will inform {member_name}.")
-        borrower_confirmation(user_id, loan_amount)
+        borrower_confirmation(user_id, loan_amount, admin_id)
     elif response == "no":
         bot.send_message(admin_id, "No problem! I will inform them.")
     else:
         bot.send_message(admin_id, "Invalid response. Please select 'Yes' or 'No'.")
         
 # ask confirmation of borrower whether they got payment or not
-def borrower_confirmation(user_id, loan_amount):
+def borrower_confirmation(user_id, loan_amount, admin_id):
     borrower_response_text = f"Have you recieved the payment of {loan_amount}? Please reply in 'Yes' or 'No'."
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     borrower_response_msg = bot.send_message(user_id, borrower_response_text, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_borrower_response(msg, user_id))
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_borrower_response(msg, user_id, loan_amount, admin_id))
 
     
-def handle_borrower_response(msg,user_id):
+def handle_borrower_response(msg,user_id, loan_amount, admin_id):
     response = msg.text.strip().lower()
     if response == "yes":
         bot.send_message(user_id, f"Great! Thank you for your confirmation.")
+        send_repay_details(user_id, loan_amount, admin_id)
     elif response == "no":
         bot.send_message(user_id, "Let me confirm then I ll let you know.")
     else:
         bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
 
+#drawing pie chart
+import matplotlib.pyplot as plt
 
-   
-# create group
+def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
+    labels = ['Loan Amount', 'Interest Rate']
+    sizes = [loan_amount, interest_rate]
+
+    # Draw first pie chart for loan amount vs. interest rate
+    plt.figure(figsize=(8, 6))
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    plt.axis('equal') 
+
+    plt.savefig('pie_chart1.png', format='png', bbox_inches='tight')
+    plt.close()  
+    c.drawImage('pie_chart1.png', 120, 450, width=300, height=200)
+
+    labels = ['Loan Amount', 'Extra repayment amount']
+    sizes = [loan_amount, repayment_amount]
+
+    # Draw second pie chart for loan amount vs. repayment amount
+    plt.figure(figsize=(8, 6))
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    plt.axis('equal') 
+
+    # Save the second pie chart as a PNG file
+    plt.savefig('pie_chart2.png', format='png', bbox_inches='tight')
+    plt.close()  
+    c.drawImage('pie_chart2.png', 120, 150, width=300, height=200)
+
+#send repayment invoice/details to borrower
+def send_repay_details(user_id, loan_amount, admin_id):
+    # Create a PDF file
+    filename = f"repayment_details_{user_id}.pdf"
+    c = canvas.Canvas(filename, pagesize=letter)
+    
+    # Fetch the most recent transaction for the borrower ID
+    transaction_collections = db["Transaction"]
+    transaction = transaction_collections.find_one(
+        {"Borrower_id": user_id},
+        sort=[("transaction_date", -1)]  # Sort by transaction_date in descending order
+    )
+    group_collections = db["Groups"]
+    group_name = get_group_name(admin_id)
+    group = group_collections.find_one({"name": group_name})
+    repay_time = group.get("repay_time")
+    if repay_time:
+       repay_time = float(repay_time)
+    else:
+        repay_time = 1
+    
+    if transaction:
+        interest_rate = transaction["interest"]
+        loan_amount= float(loan_amount)
+        interest_rate= float(interest_rate)
+        repayment_amount = loan_amount + (loan_amount + interest_rate) * repay_time
+        
+        # Add content to the PDF
+        c.drawString(100, 750, "Please find your repayment details in this invoice.")
+        c.drawString(100, 730, f"Loan amount: ${loan_amount}")
+        c.drawString(100, 710, f"Interest rate per day: {interest_rate}%")
+        c.drawString(100, 690, f"Repay time: {repay_time}")
+        c.drawString(100, 670, f"Repayment amount: ${repayment_amount}")
+        
+        #draw pie chart between loan amount, interest rate and amount after repay time
+        draw_pie_charts(c, loan_amount, interest_rate, repayment_amount-loan_amount)
+        
+        # Save and close the PDF
+        c.save()
+        
+        # Send the PDF to the user
+        with open(filename, "rb") as file:
+            bot.send_document(user_id, file)
+    else:
+        print("No transaction found for the user ID:", user_id)
+
+
+#create group   
 def create_group(msg):
     user_id = msg.from_user.id
     username = msg.from_user.username
@@ -272,11 +352,13 @@ def create_group(msg):
     group_name_msg = bot.reply_to(msg, "Please enter the group name. Please keep in mind that name is case sensitive.")
     bot.register_next_step_handler(group_name_msg, lambda msg: process_group_name(msg, user_id))
 
+
 def process_group_name(msg, user_id):
     group_name = msg.text
-    if(is_group_exists(group_name)):
+    if is_group_exists(group_name):
         bot.send_message(user_id, f"Group '{group_name}' already exists. Please choose another name.")
-        return create_group(msg)
+        create_group(msg)
+        return
     join_code_msg = bot.send_message(user_id, "Please enter the join code for the group that you want to create. This code will be used by others to join the group.")
     bot.register_next_step_handler(join_code_msg, lambda msg: process_join_code(msg, user_id, group_name))
 
@@ -286,11 +368,20 @@ def process_join_code(msg, user_id, group_name):
     bot.register_next_step_handler(password_msg, lambda msg: process_password(msg, user_id, group_name, join_code))
 
 def process_password(msg, user_id, group_name, join_code):
-    username = msg.from_user.username
-    password = msg.text
-    group_creation(group_name, user_id, password,join_code , username) 
-    bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code} and you are the admin for that group")
+    admin_password = msg.text
+    upi_id_msg = bot.send_message(user_id, "Please enter the admin UPI ID which you'll use for this group.")
+    bot.register_next_step_handler(upi_id_msg, lambda msg: process_admin_upi_id(msg, user_id, group_name, join_code, admin_password))
 
+def process_admin_upi_id(msg, user_id, group_name, join_code, admin_password):
+    upi_id = msg.text 
+    repay_time = bot.send_message(user_id, "Please enter the repay duration in days for this group.")
+    bot.register_next_step_handler(repay_time, lambda msg: process_repay_duration(msg, user_id, group_name, join_code, admin_password, upi_id))
+
+def process_repay_duration(msg, user_id, group_name, join_code, admin_password, upi_id):
+    repay_time=msg.text
+    username = msg.from_user.username
+    group_creation(group_name, user_id, admin_password, join_code, username, upi_id, repay_time) 
+    bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code} and you are the admin for that group")
 
 # join group 
 def add_to_group_request(msg):

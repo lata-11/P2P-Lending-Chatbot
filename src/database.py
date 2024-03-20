@@ -15,9 +15,9 @@ except Exception as e:
     print(e)
 
 
-def group_creation(name, admin_id, admin_password, join_code, admin_name):
+def group_creation(name, admin_id, admin_password, join_code, admin_name, upi_id, repay_time):
     
-    record = {"name": name, "admin_id": admin_id, "admin_password": admin_password, "join_code": join_code}
+    record = {"name": name, "admin_id": admin_id, "admin_password": admin_password, "join_code": join_code, "upi_id": upi_id, "repay_time": repay_time}
     collection = db["Groups"]
     
     collection.insert_one(record)
@@ -111,6 +111,13 @@ def get_admin_id(group_name):
     document = group.find_one({"name": group_name})
     if document:
         return document.get("admin_id")
+    return None
+
+def get_group_name(admin_id):
+    group = db["Groups"]
+    document = group.find_one({"admin_id": admin_id})
+    if document:
+        return document.get("name")
     return None
 
 def get_upi_id(member_name):
