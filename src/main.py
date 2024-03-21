@@ -21,7 +21,7 @@ API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
-respond_time = os.getenv("RESPOND_TIME")
+respond_time = 1
 
 @bot.message_handler(commands=["start", "hello"])
 def send_hello_message(msg):
@@ -722,6 +722,7 @@ def handle_admin_repay_response(msg, admin_id, user_id, member_name, transaction
     if response == "yes":
         bot.send_message(admin_id, f"Great! I will inform {member_name} that you have received the payment.")
         repay_borrower_confirmation(user_id, transaction_id)
+        send_lender_upi_id(admin_id, transaction_id)
     elif response == "no":
         bot.send_message(admin_id, f"No problem! I will inform {member_name}.")
     else:
@@ -736,10 +737,49 @@ def repay_borrower_confirmation(user_id, transaction_id):
             {"$set": {"Return_status": "Received"}}
         )
         bot.send_message(user_id, "Thank you, we have received your payment.")
+       
     except Exception as e:
         bot.send_message(user_id, f"Error occurred while updating transaction status: {e}")
 
+def send_lender_upi_id(admin_id, transaction_id):
+    transaction = db["Transaction"].find_one({"_id": ObjectId(transaction_id)})
+    lender_id = transaction["Lender_id"]
+    loan_amount = transaction["loan_amount"]
+    member = db["Members"].find_one({"telegram_id": lender_id})
+    lender_name = member["Member_name"]
+    upi_id = member["upi_id"]
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    msg = bot.send_message(admin_id, f"Please send the payment of {loan_amount} to the lender {lender_name} at their UPI ID {upi_id}. Please reply in 'Yes' or 'No' if you already sent.", reply_markup=markup)
     
+    bot.register_next_step_handler(msg, handle_lender_repay_response, admin_id, lender_id, lender_name, loan_amount)
+
+def handle_lender_repay_response(msg, admin_id, lender_id, lender_name, loan_amount):
+    response = msg.text.lower()
+    if response == "yes":
+        bot.send_message(admin_id, f"Great! I will inform {lender_name} that you have sent the payment.")
+        repay_lender_received_confirmation(lender_id, lender_name, loan_amount)
+    elif response == "no":
+        bot.send_message(admin_id, f"No problem! I will inform {lender_name}.")
+    else:
+        bot.send_message(admin_id, "Invalid response. Please select 'Yes' or 'No'.")
+
+def repay_lender_received_confirmation(lender_id, lender_name, loan_amount):
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    response = bot.send_message(lender_id, f"Hi {lender_name}! Thank you for lending through our platform. Did you receive your repayment amount of {loan_amount}?", reply_markup=markup)
+
+    bot.register_next_step_handler(response, handle_lender_received_response, lender_id, lender_name, loan_amount)
+
+def handle_lender_received_response(msg, lender_id, lender_name, loan_amount):
+    response = msg.text.lower()
+    if response == "yes":
+        bot.send_message(lender_id, "Great! Keep doing business with us :)")
+    elif response == "no":
+        bot.send_message(lender_id, "No problem! You will receive soon.")
+    else:
+        bot.send_message(lender_id, "Invalid response. Please select 'Yes' or 'No'.")
+
 #mapping
 mappings = {
     'greetings': send_greet,
