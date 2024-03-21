@@ -159,6 +159,19 @@
 			"responses": [
 				"Sure! Please provide the name of the group you want to view defaulters for."
 			]			
+        },
+        {
+            "tag": "loan_repayment",
+			"patterns": [
+				"repay my loan",
+				"I want to repay my loan",
+				"Want to give my loan back",
+				"payback my loan",
+				"take my loan"
+			],
+			"responses": [
+				"That's great."
+			]			
         }
 
     ]

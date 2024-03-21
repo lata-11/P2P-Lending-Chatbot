@@ -17,7 +17,8 @@ import threading
 import os
 load_dotenv()
 
-API_KEY = os.getenv("TELE_API_KEY")
+API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
 respond_time = os.getenv("RESPOND_TIME")
@@ -165,7 +166,7 @@ def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uu
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference > respond_time * 60:  #later will change to 30 mins or any time
+    if time_difference > 1 * 60:  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     
@@ -185,7 +186,7 @@ def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference >respond_time * 60:  #later will change to 30 mins or any time
+    if time_difference >1 * 60:  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     lender_id=msg.from_user.id
@@ -356,7 +357,7 @@ def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
     plt.close()  
     c.drawImage('pie_chart1.png', 120, 450, width=300, height=200)
 
-    labels = ['Loan Amount', 'Extra repayment amount']
+    labels = ['Loan Amount', 'Interest']
     sizes = [loan_amount, repayment_amount]
 
     plt.figure(figsize=(8, 6))
@@ -656,54 +657,89 @@ def process_display_defaulters_password(msg, group_name):
     else:
         bot.send_message(user_id, f"No defaulters found in group '{group_name}'.")
 
-# def payment_reminder():
-#     list = reminder()
-#     for i in list:
-#         t = i["time"]
-#         if(t>0):
-#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\n{t} days left")
-#         elif(t == 0):
-#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\nDUE TODAY")
-#         else:
-#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\nExceeded due date by {abs(i)} days.")
-
-# # Start the scheduler in a separate thread
-# def schedule_thread():
-#     while True:
-#         schedule.run_pending()
-#         time.sleep(1)  # Check every second
-
-
-# schedule.every().day.at("08:00").do(payment_reminder)
-# schedule_thread = threading.Thread(target = schedule_thread)
-# schedule_thread.start()
-
-# #loan repayment
-# def loan_repayment_request(msg):
-#     user_id=msg.from_user.id
-#     username=msg.from_user.username
-#     list = display_pending_transactions(user_id)
-#     message = "You have following pending Transactions:"
-#     for i, tran in enumerate(list):
-#         message+= f"\n{i+1}. Group: {tran["Group_name"]}  Date: {tran["Transaction_date"].date()}  Amount: {tran["loan_amount"]}  Return in: {tran["Return_time"]}"
-#     bot.send_message(user_id, message)
-#     bot.send_message(user_id, "Please choose the group from which you want to borrow money by entering the corresponding number:")
-#     bot.register_next_step_handler(msg, process_transaction_selection, user_id, list)
-
-# def process_transaction_selection(msg, user_id, list):
-#     try:
-#         choice = int(msg.text)
-#         if choice < 1 or choice > len(list):
-#             bot.send_message(user_id, "Invalid choice. Please enter a valid choice.")
-#             bot.register_next_step_handler(msg, process_transaction_selection, user_id, list)
-#             return
-#         chosen_transaction = list[choice - 1]
-#         bot.send_message(user_id, f"You've chosen transaction: {choice}")
-#         loan_repayment(msg, list[choice-1])
-#     except ValueError:
-#         bot.send_message(user_id, "Invalid input. Please enter a number.")
+#loan repayment
+def loan_repayment_request(msg):
+    user_id = msg.from_user.id
+    username = msg.from_user.username
+    transaction_list = display_pending_transactions(user_id)
+    
+    # Debugging statements
+    print(f"User ID: {user_id}")
+    print(f"Number of transactions: {len(transaction_list)}")
+    
+    if transaction_list: 
+        message = "You have the following pending Transactions:"
+        for i, tran in enumerate(transaction_list):
+            group_name = tran.get('Group_name', 'Unknown')
+            transaction_date = tran.get('transaction_date', 'Unknown')
+            loan_amount = tran.get('loan_amount', 'Unknown')
+            return_time = tran.get('return_time', 'Unknown')
+            
+            message += f"\n{i+1}. Group: {group_name}  Date: {transaction_date.date()}  Amount: {loan_amount}  Return in: {return_time}"
+        bot.send_message(user_id, message)
+        bot.send_message(user_id, "Please choose the group from which you want to borrow money by entering the corresponding number:")
+        bot.register_next_step_handler(msg, process_transaction_selection, user_id, transaction_list)
+    else:
+        bot.send_message(user_id, "You have no pending transactions.")
 
 
+def process_transaction_selection(msg, user_id, transaction_list):
+    try:
+        choice = int(msg.text)
+        if choice < 1 or choice > len(transaction_list):
+            bot.send_message(user_id, "Invalid choice. Please enter a valid choice.")
+            bot.register_next_step_handler(msg, process_transaction_selection, user_id, transaction_list)
+            return
+        chosen_transaction = transaction_list[choice - 1]
+        bot.send_message(user_id, f"You've chosen transaction: {choice}")
+        loan_repayment(msg, chosen_transaction, user_id)
+    except ValueError:
+        bot.send_message(user_id, "Invalid input. Please enter a number.")
+
+def loan_repayment(msg, transaction, user_id):
+    admin_id = get_admin_id(transaction["Group_name"])
+    upi_id = get_admin_upi_id(transaction["Group_name"])
+    member_name = get_member_name(user_id)
+    Borrower_id = transaction["Borrower_id"]
+    
+    print(admin_id)
+    bot.send_message(Borrower_id, f"Please send amount {transaction['loan_amount']} on upi_id {upi_id}.")
+    
+    # Pass the transaction ID to the confirm_repayment function along with other arguments
+    confirm_repayment(msg, admin_id, transaction["_id"], member_name, user_id, transaction["loan_amount"])
+
+def confirm_repayment(msg, admin_id, transaction_id, member_name, user_id, loan_amount):
+    response =f"Did you receive the repayment of loan {loan_amount} from the borrower {member_name}?"
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    bot.send_message(admin_id, response, reply_markup=markup)
+    
+    # Pass the 'msg' object correctly to the next step handler
+    bot.register_next_step_handler(msg, handle_admin_repay_response, admin_id, user_id, member_name, transaction_id)
+
+def handle_admin_repay_response(msg, admin_id, user_id, member_name, transaction_id):
+    response = msg.text.lower()
+    if response == "yes":
+        bot.send_message(admin_id, f"Great! I will inform {member_name} that you have received the payment.")
+        repay_borrower_confirmation(user_id, transaction_id)
+    elif response == "no":
+        bot.send_message(admin_id, f"No problem! I will inform {member_name}.")
+    else:
+        bot.send_message(admin_id, "Invalid response. Please select 'Yes' or 'No'.")
+
+
+def repay_borrower_confirmation(user_id, transaction_id):
+    try:
+        # Update Return_status in transaction table to "Received" for the chosen transaction
+        db["Transaction"].update_one(
+            {"_id": ObjectId(transaction_id)},
+            {"$set": {"Return_status": "Received"}}
+        )
+        bot.send_message(user_id, "Thank you, we have received your payment.")
+    except Exception as e:
+        bot.send_message(user_id, f"Error occurred while updating transaction status: {e}")
+
+    
 #mapping
 mappings = {
     'greetings': send_greet,
@@ -717,7 +753,7 @@ mappings = {
     'show_group_members': initiate_show_group_members_request,
     'show_member_groups': show_member_groups,
     'show_group_defaulters': show_group_defaulters_request,
-    'loan_repayment': initiate_loan_repayment_request,  
+    'loan_repayment': loan_repayment_request,  
     None: default_handler
 }
 

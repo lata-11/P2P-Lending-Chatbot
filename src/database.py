@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-uri = os.getenv("MONGO_URI")
+uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
 client = MongoClient(uri, server_api=ServerApi('1'))
 db = client["P2PLend"]
 try:
@@ -251,25 +251,31 @@ def show_defaulter(group_name):
                 pending.append(j)
     return pending  
 
-def reminder():
-    transactions = db["Transaction"]
-    list = []
-    today_date = date.today()
-    for i in transactions:
-        if(i["Return_status"]=='Pending'):
-            return_date = i["Transaction_date"]+timedelta(days=i["return_time"])
-            if(return_date - date.today() <= 2):
-                time = ((today_date - i["transaction_date"]).date()).days 
-                net_amount = amount_payable(i["loan_amount"],i["interest"], time)
-                list.append({"user_id":i["Borrower_id"], "time":(return_date - today_date), "Net amount":net_amount})
-    return list
 
 def display_pending_transactions(user_id):
-    # transactions = db["Transaction"].find({"Borrower_id": user_id, "Return_status": "Pending"},{ "_id":1, "Lender_id":1, "Transaction_date": 1, "Return_time":1, "loan_amount":1, "Group_id": 1})
     transactions = db["Transaction"].find({"Borrower_id": user_id, "Return_status": "Pending"})
-    for i in transactions:
-        i["Group_name"] = db["Groups"].find_one({i["Group_id"]},{"name":1})
-    return transactions
+    transaction_list = []
+    for transaction in transactions:
+        group = db["Groups"].find_one({"_id": transaction["Group_id"]}, {"name": 1})
+        if group:
+            group_name = group["name"]
+        else:
+            group_name = "Unknown"  # Handle case where group is not found
+        transaction_dict = {
+            "_id": transaction["_id"],  # Include the MongoDB _id field
+            "Borrower_id": transaction["Borrower_id"],
+            "Lender_id": transaction["Lender_id"],
+            "Group_id": transaction["Group_id"],
+            "loan_amount": transaction["loan_amount"],
+            "return_time": transaction["return_time"],
+            "interest": transaction["interest"],
+            "Return_status": transaction["Return_status"],
+            "transaction_date": transaction["transaction_date"],
+            "Group_name": group_name
+        }
+        transaction_list.append(transaction_dict)
+    return transaction_list
+
 
 def member_exists(member_id):
     member_collection = db["Members"]
