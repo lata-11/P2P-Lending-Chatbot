@@ -3,10 +3,13 @@ from pymongo.server_api import ServerApi
 from bson import ObjectId
 import uuid
 from datetime import datetime
-
+import os
 import certifi
-uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
+from dotenv import load_dotenv
 
+load_dotenv()
+
+uri = os.getenv("MONGO_URI")
 client = MongoClient(uri, server_api=ServerApi('1'))
 db = client["P2PLend"]
 try:
