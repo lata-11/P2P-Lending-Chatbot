@@ -1,23 +1,26 @@
 import telebot
 from neural_intents import GenericAssistant
 import sys
-import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 import schedule
 import time
 import threading 
-
-
+import matplotlib.pyplot as plt
+from dotenv import load_dotenv
 sys.stdout.reconfigure(encoding='utf-8')
-
+import uuid
 from database import *
 import re
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+import threading
+import os
+load_dotenv()
 
+API_KEY = os.getenv("TELE_API_KEY")
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
+respond_time = os.getenv("RESPOND_TIME")
 
 @bot.message_handler(commands=["start", "hello"])
 def send_hello_message(msg):
@@ -65,8 +68,6 @@ def send_greet(msg):
 
 def bye(msg):
     bot.send_message(msg.chat.id, "Goodbye!")
-    bot.stop_polling()
-    sys.exit(0)
 
 def thanks(msg):
     bot.send_message(msg.chat.id, "You're welcome:)")
@@ -118,75 +119,93 @@ def process_group_selection(msg, user_id, member_groups):
         bot.send_message(user_id, "Invalid input. Please enter a number.")
 
 def borrow_loan(msg,group_id):
-    user_id = msg.from_user.id
+    borrower_id = msg.from_user.id
     if group_id == None:
-        bot.send_message(user_id, "Invalid group id. Please enter a valid group")
+        bot.send_message(borrower_id, "Invalid group id. Please enter a valid group")
+        bot.register_next_step_handler(msg, lambda msg: get_member_groups(msg)) 
     loan_msg = bot.reply_to(msg, "How much money do you want to borrow?")
-    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, user_id, group_id))
+    bot.register_next_step_handler(loan_msg, lambda msg: process_loan_request(msg, borrower_id, group_id))
 
-
-def process_loan_request(msg, user_id, group_id):
+def process_loan_request(msg, borrower_id, group_id):
     loan_amount = (extract_numeric_value(msg.text))
     username = msg.from_user.username
+    message_time = msg.date
 
     if loan_amount is not None:
         response = f"Your loan request of {loan_amount} rupees is under process. You will be informed within 30 minutes."
         bot.reply_to(msg, response)
-        create_poll(msg, user_id, username,loan_amount, group_id)
+        loan_uuid = str(uuid.uuid4()) 
+        create_poll(msg, borrower_id,loan_amount, group_id,loan_uuid,message_time)
+        schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid)
     else:
         bot.reply_to(msg, "Invalid amount. Please enter a numeric value greater than zero.")
         borrow_loan(msg)
 
+def schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid):
+    threading.Timer(0.5 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
+
 #create poll
-def create_poll(msg, user_id, username, loan_amount, group_id):
-    sent_msg =f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give?"
+def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timestamp):
+    sent_msg = f"A group member of yours has requested a loan of {loan_amount}. Are you willing to give? Please respond with 'Yes' or 'No' within 30 minutes."
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
-    bot.send_message(user_id,sent_msg, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_poll_response(msg,group_id, loan_amount, user_id, username))
+    group_name=get_group_name(group_id)
+    group_members = db["Members"].find({"Group_id": group_id})
+    for member in group_members:
+        lender_id = member["telegram_id"]
+        if lender_id == borrower_id or lender_id == get_admin_id(group_name):
+            continue
+        else:
+            bot.send_message(lender_id, sent_msg, reply_markup=markup) 
+            bot.register_next_step_handler_by_chat_id(lender_id, lambda msg: handle_poll_response(msg, group_id, loan_amount, lender_id, borrower_id,loan_uuid,stored_timestamp))
 
-def handle_poll_response(msg, group_id, loan_amount, user_id, username):
-    user_response = msg.text.lower()
-    upi_id = get_upi_id(username)  
-    if user_response == "yes":
-        bot.send_message(user_id, "You voted 'Yes'! Thank you for lending.")
-        get_proposal(msg, user_id, group_id, loan_amount)
-        #send_upi_details(user_id, upi_id)
-    elif user_response == "no":
-        bot.send_message(user_id, "You voted 'No'!")
+def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uuid,stored_timestamp):
+    lender_id=msg.from_user.id
+    response = msg.text.strip().lower()
+    message_time = msg.date
+    time_difference = message_time - stored_timestamp
 
-
-#proposal    
-def get_proposal(msg, user_id, group_id, loan_amount):
-    send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
-    bot.send_message(user_id, send_msg)
+    if time_difference > respond_time * 60:  #later will change to 30 mins or any time
+        bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
+        return
     
-    def process_next_step(msg, loan_amount):
-        process_interest_rate(msg, group_id, user_id, loan_amount)
-
-    bot.register_next_step_handler(msg, process_next_step, loan_amount)
-
-def process_interest_rate(msg, group_id, user_id, loan_amount):
-    interest_rate = msg.text
-    # print(interest_rate)
-    add_proposal(user_id, group_id, interest_rate, loan_amount, user_id)  # 2nd user_id is borrower id
-    bot.send_message(user_id, "Thanks for providing the interest rate!")
-    bot.register_next_step_handler(msg, all_proposals(msg, user_id, group_id, loan_amount))
-
-#show proposal to the borrower
-def all_proposals(msg, user_id, group_id, loan_amount):
-    bot.send_message(user_id, "Hi, Here are the proposals you got for the loan you asked.")
-    proposals = show_proposals(group_id)
-    if isinstance(proposals, str) and proposals.startswith("Error occurred"):
-        # Handle the error case
-        bot.send_message(user_id, proposals)
-    elif proposals == "No proposals found.":
-        bot.send_message(user_id, proposals)
+    if response == "yes":
+        bot.send_message(lender_id, f"Thank you for your willingness to lend {loan_amount}.")
+        send_msg = f"Hi, Please provide the interest rate/day for the loan of {loan_amount}"
+        bot.send_message(lender_id, send_msg)
+        bot.register_next_step_handler_by_chat_id(lender_id, lambda msg:process_interest_rate(msg, group_id, lender_id, loan_amount,borrower_id,loan_uuid,stored_timestamp)) 
+    elif response == "no":
+        bot.send_message(user_id, "Thank you for your response.")
     else:
-        for i, interest_rate in enumerate(proposals, start=1):
-            bot.send_message(user_id, f"{i}. Interest Rate/day: {interest_rate}")
-        bot.send_message(user_id, "Please choose a proposal by entering the corresponding number.")
-        bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
+        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
+        return handle_poll_response(msg, group_id, loan_amount, lender_id, borrower_id)
+
+def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_uuid,stored_timestamp):
+    interest_rate = msg.text
+    message_time = msg.date
+    time_difference = message_time - stored_timestamp
+
+    if time_difference >respond_time * 60:  #later will change to 30 mins or any time
+        bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
+        return
+    lender_id=msg.from_user.id
+    add_proposal(lender_id, group_id, interest_rate, loan_amount, borrower_id,loan_uuid)
+    bot.send_message(lender_id, "Thanks for providing the interest rate!")
+    
+def all_proposals(borrower_id, group_id, loan_amount, loan_uuid):
+    bot.send_message(borrower_id, "Hi, Here are the proposals you got for the loan you asked.")
+    proposals = show_proposals(loan_uuid)
+    print(loan_uuid)
+    if isinstance(proposals, str) and proposals.startswith("Error occurred"):
+        bot.send_message(borrower_id, proposals)
+    elif proposals == "No proposals found.":
+        bot.send_message(borrower_id, proposals)
+    else:
+        proposal_messages = [f"{i}. Interest Rate/day: {proposal['interest']}" for i, proposal in enumerate(proposals, start=1)]
+        proposals_display = "\n".join(proposal_messages)
+        bot.send_message(borrower_id, proposals_display)
+        bot.send_message(borrower_id, "Please choose a proposal by entering the corresponding number.")
+        bot.register_next_step_handler_by_chat_id(borrower_id, lambda msg: choose_proposal(msg, borrower_id, group_id, loan_amount, proposals))
 
 def choose_proposal(msg, user_id, group_id, loan_amount, proposals):
     try:
@@ -195,95 +214,140 @@ def choose_proposal(msg, user_id, group_id, loan_amount, proposals):
             bot.send_message(user_id, "Invalid choice. Please enter a valid proposal number.")
             bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
             return
-        chosen_proposal = proposals[choice - 1]  # Adjust index to zero-based
-        bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal}. Please wait we are transferring the amount to your UPI ID.")
-        # Process further if needed
-        add_transaction(user_id, user_id, group_id, loan_amount, chosen_proposal)#2nd user_id is borrower id
-        send_upi_details(user_id, group_id, loan_amount)  
+        chosen_proposal = proposals[choice - 1]  
+        lender_id = chosen_proposal["lender_id"]  # Assuming lender_id is present in the proposal
+        bot.send_message(user_id, f"You've chosen proposal {choice}. Interest Rate/day: {chosen_proposal['interest']}. Please wait we are transferring the amount to your UPI ID.")
+        return_time = get_group_repay_time(group_id)
+        add_transaction(user_id, lender_id, group_id, loan_amount, chosen_proposal["interest"],return_time)
+        send_admin_upi_details(chosen_proposal)
     except ValueError:
         bot.send_message(user_id, "Invalid input. Please enter a number.")
         bot.register_next_step_handler(msg, choose_proposal, user_id, group_id, loan_amount, proposals)
 
-
-def send_upi_details(user_id, group_id, loan_amount):
-    member_collections = db["Members"]
-    member = member_collections.find_one({"telegram_id": user_id})
-    
-    if member:
-        member_name = member.get("Member_name", "Unknown")
-        upi_id = get_upi_id(member_name)  # Retrieve UPI ID for the member
-        if not upi_id:
-            print(f"UPI ID not found for member: {member_name}")
-            return
-        
-        group_ids = member.get("Group_id", [])
-        if not group_ids:
-            print(f"No groups found for member: {member_name}")
-            return
-        
-        for group_id_in_db in group_ids:
-            # Retrieve group name using group_id
-            group_doc = db["Groups"].find_one({"_id": group_id_in_db})
-            if group_doc:
-                group_name = group_doc.get("name")
-                admin_id = get_admin_id(group_name)  
-                if admin_id and group_id_in_db==group_id:
-                    send_msg = f"Hi, A member {member_name} of your group {group_name} has requested a loan of {loan_amount}. Please send them the money. Here are the details. UPI ID: {upi_id}"
-                    bot.send_message(admin_id, send_msg)  # Sending message to admin
-                    admin_confirmation(admin_id, loan_amount, user_id, member_name)
-                else:
-                    print(f"Admin ID not found for group_name: {group_name}")
-            else:
-                print(f"Group not found for group_id: {group_id_in_db}")
+def send_admin_upi_details(chosen_proposal):
+    user_id=chosen_proposal["lender_id"]
+    group_id=chosen_proposal["group_id"]
+    loan_amount=chosen_proposal["loan_amount"]
+    group_name = get_group_name(group_id)
+    admin_upi_id = get_admin_upi_id(group_name)
+    admin_id=get_admin_id(group_name)
+    borrower_username = get_member_name(chosen_proposal["borrower_id"])
+    lender_username = get_member_name(user_id)
+    if admin_upi_id:
+        send_msg = f"Hi, Your proposal has been accepted by the borrrower. Please send the loan amount of {loan_amount} to admin's UPI ID{admin_upi_id}."
+        bot.send_message(user_id, send_msg)
+        bot.send_message(admin_id, f"Hi, A member @{borrower_username} of group {group_name} has accepted the proposal of @{lender_username} for loan just now. You will have to get involved in the transaction. Please stay active for some time.")
+        lender_confirmation(chosen_proposal)
     else:
-        print("Member not found.")
+        print("Admin ID not found for group:", group_name)
+
+def lender_confirmation(chosen_proposal):
+    user_id=chosen_proposal["lender_id"]
+    loan_amount=chosen_proposal["loan_amount"]
+    lender_response_text = f"Have you sent the loan amount of {loan_amount} to the admin? Please reply in 'Yes' or 'No'."
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    lender_response_msg = bot.send_message(user_id, lender_response_text, reply_markup=markup) 
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_lender_response(msg, chosen_proposal))
+    
+def handle_lender_response(msg, chosen_proposal):
+    group_name=get_group_name(chosen_proposal["group_id"])
+    admin_id=get_admin_id(group_name)
+    response = msg.text.strip().lower()
+    lender_id=chosen_proposal["lender_id"]
+    loan_amount=chosen_proposal["loan_amount"]
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    if response == "yes":
+        bot.send_message(lender_id, f"Great! I will inform the admin.")
+        bot.send_message(admin_id, f"Hi, The lender has sent the loan amount of {loan_amount}. Please confirm if you have received the money by typing 'Yes' or 'No'.",reply_markup=markup)
+        bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: handle_admin_recieved_payment(msg, chosen_proposal))
+    elif response == "no":
+        bot.send_message(lender_id, "No problem! I will inform the admin.")
+        bot.send_message(admin_id, f"Hi, The lender has not sent the loan amount of {loan_amount}. He may have cancelled the loan. Please contact him personally")
+    else:
+        bot.send_message(len, "Invalid response. Please select 'Yes' or 'No'.")
         
+def handle_admin_recieved_payment(msg, chosen_proposal):
+    response = msg.text.strip().lower()
+    user_id=chosen_proposal["borrower_id"]
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Yes", "No")
+    if response == "yes":
+        send_upi_details(chosen_proposal)
+    elif response == "no":
+        bot.send_message(user_id, "No problem! I will inform the lender.")
+        return lender_confirmation(chosen_proposal)
+    else:
+        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.",markup=markup)
+        return bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_admin_recieved_payment(msg, chosen_proposal))
+
+def send_upi_details(chosen_proposal):
+    user_id=chosen_proposal["borrower_id"]
+    loan_amount=chosen_proposal["loan_amount"]
+    group_name=get_group_name(chosen_proposal["group_id"])
+    admin_id=get_admin_id(group_name)
+    member_name=get_member_name(user_id)
+    upi_id=get_upi_id(member_name)
+    send_msg = f"Please send them the money you recently received. Here are the details. UPI ID: {upi_id}"
+    bot.send_message(admin_id, send_msg) 
+    admin_confirmation(chosen_proposal)
+    
 # ask confirmation of admin whether they did payment or not
-def admin_confirmation(admin_id, loan_amount, user_id, member_name):
+def admin_confirmation(chosen_proposal):
+    group_name=get_group_name(chosen_proposal["group_id"])
+    admin_id=get_admin_id(group_name)
+    loan_amount=chosen_proposal["loan_amount"]
+    member_name=get_member_name(chosen_proposal["borrower_id"])
     admin_response_text = f"Have you made the payment of {loan_amount} to {member_name}? Please reply in 'Yes' or 'No'."
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     admin_response_msg = bot.send_message(admin_id, admin_response_text, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: handle_admin_response(msg, member_name, user_id, admin_id, loan_amount))
+    bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: handle_admin_response(msg, chosen_proposal))
 
     
-def handle_admin_response(msg, member_name, user_id, admin_id, loan_amount):
+def handle_admin_response(msg, chosen_proposal):
     response = msg.text.strip().lower()
+    group_name=get_group_name(chosen_proposal["group_id"])
+    borrower_name=get_member_name(chosen_proposal["borrower_id"])
+    admin_id=get_admin_id(group_name)
     if response == "yes":
-        bot.send_message(admin_id, f"Great! I will inform {member_name}.")
-        borrower_confirmation(user_id, loan_amount, admin_id)
+        bot.send_message(admin_id, f"Great! I will inform {borrower_name}.")
+        borrower_confirmation(chosen_proposal)
     elif response == "no":
         bot.send_message(admin_id, "No problem! I will inform them.")
     else:
         bot.send_message(admin_id, "Invalid response. Please select 'Yes' or 'No'.")
+        return admin_confirmation(chosen_proposal)
         
-# ask confirmation of borrower whether they got payment or not
-def borrower_confirmation(user_id, loan_amount, admin_id):
+def borrower_confirmation(chosen_proposal):
+    loan_amount=chosen_proposal["loan_amount"]
+    user_id=chosen_proposal["borrower_id"]
     borrower_response_text = f"Have you recieved the payment of {loan_amount}? Please reply in 'Yes' or 'No'."
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
-    borrower_response_msg = bot.send_message(user_id, borrower_response_text, reply_markup=markup) 
-    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_borrower_response(msg, user_id, loan_amount, admin_id))
+    bot.send_message(user_id, borrower_response_text, reply_markup=markup) 
+    bot.register_next_step_handler_by_chat_id(user_id, lambda msg: handle_borrower_response(msg, chosen_proposal))
 
     
-def handle_borrower_response(msg,user_id, loan_amount, admin_id):
+def handle_borrower_response(msg,chosen_proposal):
+    borrower_id=chosen_proposal["borrower_id"]
     response = msg.text.strip().lower()
+    group_name=get_group_name(chosen_proposal["group_id"])
     if response == "yes":
-        bot.send_message(user_id, f"Great! Thank you for your confirmation.")
-        send_repay_details(user_id, loan_amount, admin_id)
+        bot.send_message(borrower_id, f"Great! Thank you for your confirmation.")
+        send_repay_details(chosen_proposal)
     elif response == "no":
-        bot.send_message(user_id, "Let me confirm then I ll let you know.")
+        bot.send_message(borrower_id, "Let me confirm then I ll let you know.")
+        return admin_confirmation(chosen_proposal)
     else:
-        bot.send_message(user_id, "Invalid response. Please select 'Yes' or 'No'.")
+        bot.send_message(borrower_id, "Invalid response. Please select 'Yes' or 'No'.")
 
-#drawing pie chart
-import matplotlib.pyplot as plt
 
 def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
     labels = ['Loan Amount', 'Interest Rate']
     sizes = [loan_amount, interest_rate]
 
-    # Draw first pie chart for loan amount vs. interest rate
     plt.figure(figsize=(8, 6))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.axis('equal') 
@@ -295,30 +359,29 @@ def draw_pie_charts(c, loan_amount, interest_rate, repayment_amount):
     labels = ['Loan Amount', 'Extra repayment amount']
     sizes = [loan_amount, repayment_amount]
 
-    # Draw second pie chart for loan amount vs. repayment amount
     plt.figure(figsize=(8, 6))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.axis('equal') 
 
-    # Save the second pie chart as a PNG file
     plt.savefig('pie_chart2.png', format='png', bbox_inches='tight')
     plt.close()  
     c.drawImage('pie_chart2.png', 120, 150, width=300, height=200)
 
-#send repayment invoice/details to borrower
-def send_repay_details(user_id, loan_amount, admin_id):
+def send_repay_details(chosen_proposal):
+    user_id=chosen_proposal["borrower_id"]
+    loan_amount=chosen_proposal["loan_amount"]
+    group_name=get_group_name(chosen_proposal["group_id"])
+    admin_id=get_admin_id(group_name)
     # Create a PDF file
     filename = f"repayment_details_{user_id}.pdf"
     c = canvas.Canvas(filename, pagesize=letter)
     
-    # Fetch the most recent transaction for the borrower ID
     transaction_collections = db["Transaction"]
     transaction = transaction_collections.find_one(
         {"Borrower_id": user_id},
-        sort=[("transaction_date", -1)]  # Sort by transaction_date in descending order
+        sort=[("transaction_date", -1)]  
     )
     group_collections = db["Groups"]
-    group_name = get_group_name(admin_id)
     group = group_collections.find_one({"name": group_name})
     repay_time = group.get("repay_time")
     if repay_time:
@@ -332,20 +395,16 @@ def send_repay_details(user_id, loan_amount, admin_id):
         interest_rate= float(interest_rate)
         repayment_amount = loan_amount + (loan_amount + interest_rate) * repay_time
         
-        # Add content to the PDF
         c.drawString(100, 750, "Please find your repayment details in this invoice.")
         c.drawString(100, 730, f"Loan amount: ${loan_amount}")
         c.drawString(100, 710, f"Interest rate per day: {interest_rate}%")
         c.drawString(100, 690, f"Repay time: {repay_time}")
         c.drawString(100, 670, f"Repayment amount: ${repayment_amount}")
         
-        #draw pie chart between loan amount, interest rate and amount after repay time
         draw_pie_charts(c, loan_amount, interest_rate, repayment_amount-loan_amount)
         
-        # Save and close the PDF
         c.save()
         
-        # Send the PDF to the user
         with open(filename, "rb") as file:
             bot.send_document(user_id, file)
     else:
@@ -407,36 +466,41 @@ def add_to_group_request(msg):
 def process_group_name_for_join(msg, user_id, username):
     group_name = msg.text
     if is_group_exists(group_name):
+        group_id = get_group_id(group_name)
+        if(already_member_of_group(user_id,group_id)):
+            bot.send_message(user_id, "You are already member of this group.")
+            return
         bot.send_message(user_id, "Please enter the join code for the group. If you don't have it ask admin for the join code.")
         bot.register_next_step_handler(msg, lambda msg: process_join_code_for_join(msg, user_id, username, group_name))
     else:
         bot.send_message(user_id, f"Group '{group_name}' does not exist.")
-        return add_to_group_request(msg)
+        return 
 
 def process_join_code_for_join(msg, user_id, username, group_name):
     join_code = msg.text
     if is_join_code_correct(group_name, join_code):
-        send_request_to_admin(group_name, user_id, username)
         bot.send_message(user_id, "Your request has been sent to the admin. You will be notified once the admin acknowledges your request.")
+        admin_id = get_admin_id(group_name)
+        if admin_id is not None:
+            notification_msg = f"User @{username} wants to join the group '{group_name}'. Do you approve?"  
+            markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            markup.add("Yes", "No")
+            bot.send_message(admin_id, notification_msg, reply_markup=markup)
+            bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: process_admin_response(msg, group_name, user_id, username))
     else:
         bot.send_message(user_id, "Incorrect join code. Please try again.")
         return add_to_group_request(msg)
         
-def send_request_to_admin(group_name, user_id, username):
-    admin_id = get_admin_id(group_name)
-    if admin_id is not None:
-        notification_msg = f"User @{username} wants to join the group '{group_name}'. Do you approve?"  
-        markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
-        markup.add("Yes", "No")
-        bot.send_message(admin_id, notification_msg, reply_markup=markup)
-        bot.register_next_step_handler_by_chat_id(admin_id, lambda msg: process_admin_response(msg, group_name, user_id, username))
-
 def process_admin_response(msg, group_name, user_id, username):
     admin_response = msg.text.lower()
     if admin_response == "yes":
-        bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan.")
-        # Register a handler to capture UPI ID
-        bot.register_next_step_handler(msg, lambda msg: process_upi_id(msg, group_name, user_id, username))
+        group_id=get_group_id(group_name)
+        if(member_exists(user_id)==False):
+            bot.send_message(user_id, "Please provide your UPI ID that you'll use for lending/receiving a loan..")
+            bot.register_next_step_handler_by_chat_id(user_id, lambda msg: process_upi_id(msg, group_name, user_id, username))
+        else:
+            add_old_member(user_id,group_id)
+            bot.send_message(user_id, f"Your request to join has been accepted by admin. Congratulations! You have been added to the group '{group_name}'.")
     elif admin_response == "no":
         bot.send_message(user_id, f"Your request to join the group '{group_name}' has been rejected by the admin.")
     else:
@@ -445,9 +509,7 @@ def process_admin_response(msg, group_name, user_id, username):
 def process_upi_id(msg, group_name, user_id, username):
     upi_id = msg.text
     bot.send_message(user_id, "Thank you for providing your UPI ID.")
-    
     bot.send_message(user_id, "Please provide your phone number linked to your UPI ID.")
-    # Register a handler to capture phone number
     bot.register_next_step_handler(msg, lambda msg: process_phone_number(msg, group_name, user_id, username, upi_id))
 
 def process_phone_number(msg, group_name, user_id, username, upi_id):
@@ -666,4 +728,4 @@ assistant.train_model()
 assistant.save_model()
 
 
-bot.infinity_polling()
+bot.polling(non_stop=True)

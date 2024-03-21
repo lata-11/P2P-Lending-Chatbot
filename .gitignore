@@ -5,7 +5,7 @@
 /logs/
 
 # Ignore environment-specific settings files
-*.env
+.env
 
 # Ignore all files in the "data" directory, but not subdirectories
 /data/*
