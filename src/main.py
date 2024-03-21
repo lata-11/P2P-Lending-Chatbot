@@ -4,7 +4,6 @@ import sys
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-import schedule
 import time
 import threading 
 import matplotlib.pyplot as plt
@@ -17,7 +16,7 @@ import threading
 import os
 load_dotenv()
 
-API_KEY = '6410553908:AAFPXhYc8Yh0jcs-w_U1qIpuYI2RCkKSCHA'
+API_KEY = os.getenv("TELE_API_KEY")
 
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
@@ -713,9 +712,7 @@ def confirm_repayment(msg, admin_id, transaction_id, member_name, user_id, loan_
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Yes", "No")
     bot.send_message(admin_id, response, reply_markup=markup)
-    
-    # Pass the 'msg' object correctly to the next step handler
-    bot.register_next_step_handler(msg, handle_admin_repay_response, admin_id, user_id, member_name, transaction_id)
+    bot.register_next_step_handler_by_chat_id(admin_id,lambda msg: handle_admin_repay_response(msg,admin_id, user_id, member_name, transaction_id) )
 
 def handle_admin_repay_response(msg, admin_id, user_id, member_name, transaction_id):
     response = msg.text.lower()
@@ -731,7 +728,6 @@ def handle_admin_repay_response(msg, admin_id, user_id, member_name, transaction
 
 def repay_borrower_confirmation(user_id, transaction_id):
     try:
-        # Update Return_status in transaction table to "Received" for the chosen transaction
         db["Transaction"].update_one(
             {"_id": ObjectId(transaction_id)},
             {"$set": {"Return_status": "Received"}}
