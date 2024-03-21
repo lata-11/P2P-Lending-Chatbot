@@ -80,7 +80,6 @@ def add_member(group_name, member_id, member_name, upi_id=None, phone_number=Non
     existing_member = member_collections.find_one({"telegram_id": member_id})
     if existing_member:
         group_ids = existing_member.get("Group_id", [])
-        # Convert group_ids to a list if it's an ObjectId
         if not isinstance(group_ids, list):
             group_ids = [group_ids]
         if group_id not in group_ids:
@@ -162,13 +161,9 @@ def show_proposals(loan_uuid):
         if count == 0:
             return "No proposals found."
         else:
-            interest_rates = []  
-            for proposal in proposals:
-                interest_rates.append(proposal["interest"])  
-            return interest_rates  
+            return proposals  
     except Exception as e:
         return f"Error occurred while fetching proposals: {str(e)}"
-
 
 
 def lend_proposals(lender_tid, group_name, interest, borrower_tid=None):
@@ -260,3 +255,13 @@ def get_admin_upi_id(group_name):
     group = db["Groups"]
     document = group.find_one({"name": group_name})
     return document.get("upi_id")
+
+def get_group_repay_time(group_id):
+    group = db["Groups"]
+    document = group.find_one({"_id": group_id}) 
+    return document.get("repay_time")
+
+def get_member_name(member_id):
+    member_collection = db["Members"]
+    document = member_collection.find_one({"telegram_id": member_id})
+    return document.get("Member_name")
