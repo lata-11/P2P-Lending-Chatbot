@@ -132,7 +132,7 @@ def process_loan_request(msg, borrower_id, group_id):
         borrow_loan(msg)
 
 def schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid):
-    threading.Timer(0.5 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
+    threading.Timer(1 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
 
 #create poll
 def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timestamp):
@@ -155,7 +155,7 @@ def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uu
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference > respond_time * 60:  #later will change to 30 mins or any time
+    if time_difference > (1 * 60):  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     
@@ -175,7 +175,7 @@ def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference >respond_time * 60:  #later will change to 30 mins or any time
+    if time_difference > (1 * 60):  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     lender_id=msg.from_user.id
@@ -520,24 +520,29 @@ def leave_group_request(msg):
         bot.send_message(user_id,"Please set your Telegram username before interacting with this bot.You will be known by that username in the group. So please set it accordingly.")
         return
     else:
+        groups=get_groups_of_member(user_id)
+        group_list = [{"name": group} for group in groups]
+        group_display = "\n".join([f"{i+1}. {group['name']}" for i, group in enumerate(group_list)])
+        bot.send_message(user_id, "You are a member of the following groups:\n" + group_display)
         bot.send_message(user_id, "Please enter the name of the group you want to exit. Please keep in mind that name is case sensitive.")
         bot.register_next_step_handler(msg, lambda msg: process_group_name_for_removal(msg, user_id, username))
 
 def process_group_name_for_removal(msg, user_id, username):
     group_name = msg.text
+    if(get_admin_id(group_name)==user_id):
+        bot.send_message(user_id, "You are the admin of this group. You cannot leave the group.")
+        return
+
     if is_group_exists(group_name):
-        bot.register_next_step_handler(msg, lambda msg: process_removal_request(msg, user_id, username, group_name))
+        if(leave_group(username,user_id,group_name)):
+            bot.send_message(user_id,f"You have been removed from the group '{group_name}' ,Successfully.")
+        else:
+            bot.send_message(user_id,"Invalid request. You are not the member of this group.")
+
     else:
         bot.send_message(user_id, f"Group '{group_name}' does not exist.")
         return leave_group_request(msg)
     
-def process_removal_request(msg, user_id, username,group_name):
-    if(leave_group(username,user_id,group_name)):
-        bot.send_message(user_id,f"You have been removed from the group '{group_name}' ,Successfully.")
-    else:
-        bot.send_message(user_id,"Invalid request. You are not the member of this group.")
-
-
 #delete_group
 def delete_group_request(msg):
     user_id = msg.from_user.id
@@ -545,6 +550,10 @@ def delete_group_request(msg):
     if username is None:
         bot.send_message(user_id, "Please set your Telegram username before interacting with this bot.")
         return
+    admin_groups=get_admin_groups(user_id)
+    group_list = [{"name": group} for group in admin_groups]
+    group_display = "\n".join([f"{i+1}. {group['name']}" for i, group in enumerate(group_list)])
+    bot.send_message(user_id, "You are the admin of the following groups:\n" + group_display)
     bot.send_message(user_id, "Please enter the name of the group you want to delete:")
     bot.register_next_step_handler(msg, lambda msg: process_delete_group_name(msg, user_id))
 

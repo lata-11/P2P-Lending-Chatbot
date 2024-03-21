@@ -268,3 +268,9 @@ def get_member_name(member_id):
     member_collection = db["Members"]
     document = member_collection.find_one({"telegram_id": member_id})
     return document.get("Member_name")
+
+def get_admin_groups(admin_id):
+    group_collection = db["Groups"]
+    group_documents = group_collection.find({"admin_id": admin_id}, {"name": 1})
+    return [group['name'] for group in group_documents]
+
