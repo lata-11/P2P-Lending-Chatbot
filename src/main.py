@@ -11,10 +11,8 @@ import uuid
 from database import *
 import re
 import threading
-from pathlib import Path
 import os
-dotenv_path = Path('../.env')
-load_dotenv(dotenv_path=dotenv_path)
+load_dotenv()
 
 API_KEY = os.getenv("TELE_API_KEY")
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
