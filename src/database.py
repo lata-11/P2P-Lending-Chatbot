@@ -255,3 +255,8 @@ def already_member_of_group(member_id, group_id):
 def add_old_member(member_id, group_id):
     member_collection = db["Members"]
     member_collection.update_one({"telegram_id": member_id}, {"$push": {"Group_id": group_id}})
+    
+def get_admin_upi_id(group_name):
+    group = db["Groups"]
+    document = group.find_one({"name": group_name})
+    return document.get("upi_id")
