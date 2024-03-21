@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+import schedule
+import time
+import threading 
 
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -40,6 +43,14 @@ def initiate_loan_process(msg):
 def initiate_show_group_members_request(msg):
     show_group_members_request(msg)
 
+@bot.message_handler(commands=["show_group_defaulters"])
+def initiate_show_group_defaulters_request(msg):
+    show_group_defaulters_request(msg)
+
+@bot.message_handler(commands=["loan_repayment"])
+def initiate_loan_repayment_request(msg):
+    loan_repayment_request(msg)
+    
 @bot.message_handler(func=lambda msg: True)
 def echo_all(message):
     print(f"Received message: {message.text}")
@@ -63,7 +74,6 @@ def thanks(msg):
 
 def default_handler(msg):
     bot.reply_to(msg, "I did not understand.")
-
 
 # borrow loan
 def extract_numeric_value(sentence):
@@ -552,6 +562,86 @@ def show_member_groups(msg):
         group_display = "\n".join([f"{i+1}. {group['name']}" for i, group in enumerate(group_list)])
         bot.send_message(user_id, "You are a member of the following groups:\n" + group_display)
 
+#show defaulters
+def show_group_defaulters_request(msg):
+    user_id = msg.from_user.id
+    send_msg = "Sure! Please provide the name of the group you want to view defaulters for."
+    bot.send_message(user_id, send_msg)
+    bot.register_next_step_handler(msg, lambda msg: process_group_name_for_display_defaulters(msg, user_id))
+
+def process_group_name_for_display_defaulters(msg, user_id):
+    group_name = msg.text
+    if is_group_exists(group_name):
+        admin_id = get_admin_id(group_name)
+        if admin_id == user_id:
+            bot.send_message(user_id, f"Please enter the admin password for the group '{group_name}':")
+            bot.register_next_step_handler(msg, lambda msg: process_display_defaulters_password(msg, group_name))
+        else:
+            bot.send_message(user_id, "You are not the admin of this group. Only admins can view the members.")
+    else:
+        bot.send_message(user_id, f"Group '{group_name}' does not exist.")
+
+def process_display_defaulters_password(msg, group_name):
+    admin_password = msg.text
+    user_id = msg.from_user.id
+    if not admin_login(user_id, admin_password, group_name):
+        bot.send_message(user_id, "Incorrect admin password. Access denied.")
+        return
+    defaulters = show_defaulter(group_name)
+    if defaulters:
+        defaulter_list = "\n".join([entry for entry in defaulters])
+        bot.send_message(user_id, f"Defaulters of group '{group_name}':\n{defaulter_list}")
+    else:
+        bot.send_message(user_id, f"No defaulters found in group '{group_name}'.")
+
+# def payment_reminder():
+#     list = reminder()
+#     for i in list:
+#         t = i["time"]
+#         if(t>0):
+#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\n{t} days left")
+#         elif(t == 0):
+#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\nDUE TODAY")
+#         else:
+#             bot.send_message(i["user_id"], f"REMINDER!!!\n Return Amount {i["Net amount"]} to the admin.\nExceeded due date by {abs(i)} days.")
+
+# # Start the scheduler in a separate thread
+# def schedule_thread():
+#     while True:
+#         schedule.run_pending()
+#         time.sleep(1)  # Check every second
+
+
+# schedule.every().day.at("08:00").do(payment_reminder)
+# schedule_thread = threading.Thread(target = schedule_thread)
+# schedule_thread.start()
+
+# #loan repayment
+# def loan_repayment_request(msg):
+#     user_id=msg.from_user.id
+#     username=msg.from_user.username
+#     list = display_pending_transactions(user_id)
+#     message = "You have following pending Transactions:"
+#     for i, tran in enumerate(list):
+#         message+= f"\n{i+1}. Group: {tran["Group_name"]}  Date: {tran["Transaction_date"].date()}  Amount: {tran["loan_amount"]}  Return in: {tran["Return_time"]}"
+#     bot.send_message(user_id, message)
+#     bot.send_message(user_id, "Please choose the group from which you want to borrow money by entering the corresponding number:")
+#     bot.register_next_step_handler(msg, process_transaction_selection, user_id, list)
+
+# def process_transaction_selection(msg, user_id, list):
+#     try:
+#         choice = int(msg.text)
+#         if choice < 1 or choice > len(list):
+#             bot.send_message(user_id, "Invalid choice. Please enter a valid choice.")
+#             bot.register_next_step_handler(msg, process_transaction_selection, user_id, list)
+#             return
+#         chosen_transaction = list[choice - 1]
+#         bot.send_message(user_id, f"You've chosen transaction: {choice}")
+#         loan_repayment(msg, list[choice-1])
+#     except ValueError:
+#         bot.send_message(user_id, "Invalid input. Please enter a number.")
+
+
 #mapping
 mappings = {
     'greetings': send_greet,
@@ -563,7 +653,9 @@ mappings = {
     'delete_group': initiate_delete_group_request,
     'leave_group':leave_group_request,
     'show_group_members': initiate_show_group_members_request,
-    'show_member_groups': show_member_groups,  
+    'show_member_groups': show_member_groups,
+    'show_group_defaulters': show_group_defaulters_request,
+    'loan_repayment': initiate_loan_repayment_request,  
     None: default_handler
 }
 

@@ -3,6 +3,7 @@ from pymongo.server_api import ServerApi
 from bson import ObjectId
 import uuid
 from datetime import datetime
+from datetime import date
 
 import certifi
 uri = "mongodb+srv://shambhaviverma:197376200005@desis.a9ikza8.mongodb.net/?retryWrites=true&w=majority&appName=DESIS"
@@ -232,3 +233,45 @@ def get_group_id(group_name):
         return group_document.get("_id")
     else:
         return None
+    
+#after payment
+def amount_payable(p,i,t):
+     total_amount = p + i*t
+     return total_amount
+
+def show_defaulter(group_name):
+    group_id = get_group_id(group_name)
+    transactions = db["Transaction"].find({"admin_id": group_id})
+    member = db["Members"]
+    today_date = date.today()
+    pending = []
+    for i in transactions:
+        if(i["Return_status"]=='Pending'):
+            time = ((today_date - i["transaction_date"]).date()).days 
+            if(time >= i["return_time"]):
+                borrower_name = member.find_one({"_id":i["Borrower_id"]}).get("Member_name"),
+                lender_name = member.find_one({"_id":i["Lender_id"]}).get("Member_name")
+                net_amount = amount_payable(i["loan_amount"],i["interest"], time)
+                j = {"borrower_name": borrower_name, "lender_name": lender_name, "Net amount": net_amount, "Transaction date": i["Transaction_date"], "Return date": i["Transaction_date"]+timedelta(days=i["return_time"])}
+                pending.append(j)
+    return pending  
+
+def reminder():
+    transactions = db["Transaction"]
+    list = []
+    today_date = date.today()
+    for i in transactions:
+        if(i["Return_status"]=='Pending'):
+            return_date = i["Transaction_date"]+timedelta(days=i["return_time"])
+            if(return_date - date.today() <= 2):
+                time = ((today_date - i["transaction_date"]).date()).days 
+                net_amount = amount_payable(i["loan_amount"],i["interest"], time)
+                list.append({"user_id":i["Borrower_id"], "time":(return_date - today_date), "Net amount":net_amount})
+    return list
+
+def display_pending_transactions(user_id):
+    # transactions = db["Transaction"].find({"Borrower_id": user_id, "Return_status": "Pending"},{ "_id":1, "Lender_id":1, "Transaction_date": 1, "Return_time":1, "loan_amount":1, "Group_id": 1})
+    transactions = db["Transaction"].find({"Borrower_id": user_id, "Return_status": "Pending"})
+    for i in transactions:
+        i["Group_name"] = db["Groups"].find_one({i["Group_id"]},{"name":1})
+    return transactions

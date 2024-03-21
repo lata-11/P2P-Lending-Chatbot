@@ -146,7 +146,20 @@
 			"responses": [
                 "Sure! I'll show you the groups you're a part of."
             ]
-		}
+		},
+        {
+            "tag": "show_group_defaulters",
+			"patterns": [
+				"Show defaulters of group",
+				"Display defaulters of group",
+				"List defaulters of group",
+				"Who are the defaulters of group",
+				"View defaulters of group"
+			],
+			"responses": [
+				"Sure! Please provide the name of the group you want to view defaulters for."
+			]			
+        }
 
     ]
 }
