@@ -5,16 +5,21 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 import matplotlib.pyplot as plt
-
+from dotenv import load_dotenv
 sys.stdout.reconfigure(encoding='utf-8')
 import uuid
 from database import *
 import re
 import threading
-API_KEY = '7103497197:AAEKs_1XjyP67ThJP8efKs_DM8q6dfER6oA'
+from pathlib import Path
+import os
+dotenv_path = Path('../.env')
+load_dotenv(dotenv_path=dotenv_path)
 
+API_KEY = os.getenv("TELE_API_KEY")
 bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
+respond_time = os.getenv("RESPOND_TIME")
 
 @bot.message_handler(commands=["start", "hello"])
 def send_hello_message(msg):
@@ -152,7 +157,7 @@ def handle_poll_response(msg, group_id, loan_amount, user_id,borrower_id,loan_uu
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference > 0.5 * 60:  #later will change to 30 mins or any time
+    if time_difference > respond_time * 60:  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     
@@ -172,7 +177,7 @@ def process_interest_rate(msg, group_id, user_id, loan_amount, borrower_id,loan_
     message_time = msg.date
     time_difference = message_time - stored_timestamp
 
-    if time_difference > 0.5 * 60:  #later will change to 30 mins or any time
+    if time_difference >respond_time * 60:  #later will change to 30 mins or any time
         bot.send_message(lender_id, "The time limit to propose a proposal has exceeded. You cannot propose propsal for this loan now.")
         return
     lender_id=msg.from_user.id
