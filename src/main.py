@@ -22,6 +22,7 @@ bot = telebot.TeleBot(API_KEY, parse_mode=None)
 
 respond_time = 1
 
+
 @bot.message_handler(commands=["start", "hello"])
 def send_hello_message(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
@@ -62,6 +63,7 @@ def echo_all(message):
     if add_reply:
         bot.reply_to(message, str(reply_msg))
 
+
 #greet
 def send_greet(msg):
     bot.reply_to(msg, "Hello! This is a peer-to-peer lending bot!")
@@ -75,6 +77,7 @@ def thanks(msg):
 
 def default_handler(msg):
     bot.reply_to(msg, "I did not understand.")
+
 
 # borrow loan
 def extract_numeric_value(sentence):
@@ -143,6 +146,7 @@ def process_loan_request(msg, borrower_id, group_id):
 
 def schedule_all_proposals(borrower_id,group_id,loan_amount,loan_uuid):
     threading.Timer(0.5 * 60, all_proposals, args=(borrower_id, group_id, loan_amount,loan_uuid)).start()
+
 
 #create poll
 def create_poll(msg, borrower_id, loan_amount, group_id,loan_uuid,stored_timestamp):
@@ -421,7 +425,6 @@ def create_group(msg):
     group_name_msg = bot.reply_to(msg, "Please enter the group name. Please keep in mind that name is case sensitive.")
     bot.register_next_step_handler(group_name_msg, lambda msg: process_group_name(msg, user_id))
 
-
 def process_group_name(msg, user_id):
     group_name = msg.text
     if is_group_exists(group_name):
@@ -451,6 +454,7 @@ def process_repay_duration(msg, user_id, group_name, join_code, admin_password, 
     username = msg.from_user.username
     group_creation(group_name, user_id, admin_password, join_code, username, upi_id, repay_time) 
     bot.send_message(user_id, f"Group '{group_name}' created successfully with join code: {join_code} and you are the admin for that group")
+
 
 # join group 
 def add_to_group_request(msg):
@@ -576,6 +580,7 @@ def process_delete_group_password(msg, group_name):
     result = delete_group(group_name, admin_password)
     bot.send_message(user_id, result)
 
+
 #show group members
 def show_group_members_request(msg):
     user_id = msg.from_user.id
@@ -608,6 +613,7 @@ def process_display_members_password(msg, group_name):
     else:
         bot.send_message(user_id, f"No members found in group '{group_name}'.")
 
+
 #show groups
 def show_member_groups(msg):
     user_id = msg.from_user.id
@@ -623,6 +629,7 @@ def show_member_groups(msg):
         group_list = [{"name": group} for group in member_groups]
         group_display = "\n".join([f"{i+1}. {group['name']}" for i, group in enumerate(group_list)])
         bot.send_message(user_id, "You are a member of the following groups:\n" + group_display)
+
 
 #show defaulters
 def show_group_defaulters_request(msg):
@@ -676,11 +683,10 @@ def loan_repayment_request(msg):
             
             message += f"\n{i+1}. Group: {group_name}  Date: {transaction_date.date()}  Amount: {loan_amount}  Return in: {return_time}"
         bot.send_message(user_id, message)
-        bot.send_message(user_id, "Please choose the group from which you want to borrow money by entering the corresponding number:")
+        bot.send_message(user_id, "Please choose the transaction no. for which you want to repay loan by entering the corresponding number:")
         bot.register_next_step_handler(msg, process_transaction_selection, user_id, transaction_list)
     else:
         bot.send_message(user_id, "You have no pending transactions.")
-
 
 def process_transaction_selection(msg, user_id, transaction_list):
     try:
