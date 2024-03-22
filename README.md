@@ -1,4 +1,4 @@
-# Desis_project
+# P2P Lending Bot
 
 ## Peer-to-Peer Lending Telegram Bot:
 
