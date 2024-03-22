@@ -394,7 +394,7 @@ def send_repay_details(chosen_proposal):
         interest_rate = transaction["interest"]
         loan_amount= float(loan_amount)
         interest_rate= float(interest_rate)
-        repayment_amount = loan_amount + (loan_amount + interest_rate) * repay_time
+        repayment_amount = loan_amount + (interest_rate) * repay_time
         
         c.drawString(100, 750, "Please find your repayment details in this invoice.")
         c.drawString(100, 730, f"Loan amount: ${loan_amount}")
