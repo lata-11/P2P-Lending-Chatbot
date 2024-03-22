@@ -17,5 +17,5 @@ peer_to_peer_lending_bot_words.pkl
 peer_to_peer_lending_bot.h5
 constants.cpython-310.pyc
 
-*.pdf
-*.png
+/*.pdf
+/*.png
