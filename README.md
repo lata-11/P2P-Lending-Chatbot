@@ -22,10 +22,11 @@ This Telegram bot facilitates peer-to-peer lending, allowing users to create, jo
 
 ## Setup
 
-1. **Obtain API Key:** Obtain a Telegram Bot API key from BotFather and replace `API_KEY` in the code with your own key.
-2. **Install Dependencies:** Install required Python libraries using `pip install -r requirements.txt`.
-3. **Database Configuration:** Set up a MongoDB database and configure connection details in the `database.py` file.
-4. **Run the Bot:** Execute the Python script to run the Telegram bot.
+1. **Create Bot** by using command '/newbot' in BotFather telegram
+2. **Obtain API Key:** Obtain its Telegram Bot API key from BotFather and replace `API_KEY` in the code with your own key.
+3. **Install Dependencies:** Install required Python libraries using `pip install -r requirements.txt`.
+4. **Database Configuration:** Set up a MongoDB database and configure connection details in the `database.py` file.
+5. **Run the Bot:** Execute the Python script to run the Telegram bot.
 
 ## Usage
 
