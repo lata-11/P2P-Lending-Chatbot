@@ -29,9 +29,23 @@ This Telegram bot facilitates peer-to-peer lending, allowing users to create, jo
 
 ## Usage
 
-1. Start the bot by sending the `/start` command.
-2. Use commands like `create group`, `join group`, `borrow loan`, etc., to interact with the bot and perform actions.
-3. Follow the bot's prompts to create or join groups, request or offer loans, and manage group activities.
+Start the bot by sending the `/start` command.  
+Two types of login:
+
+### Admin Login
+1. Creates a Group by providing group name and group join code
+2. Sets a password for admin login
+3. Has access to the details of all transactions
+4. Can remove a member from group
+5. Can delete a group
+   
+### Member Login
+1. Joins a group using the group name and join code provided by the admin
+2. Can demand the bot for loan (no restriction on loan amount)
+3. Can choose among the proposals given by the anonymous lenders
+4. Repay the amount back to lender through admin
+
+![image](https://github.com/lata-11/P2P-Lending-Chatbot/assets/143941227/1a615593-6b46-41bf-b232-723a84c32a82)
 
 ## Contributors
 
